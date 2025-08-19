@@ -10,6 +10,7 @@ import {
   PieChart,
   Settings2,
   SquareTerminal,
+  CreditCard,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -29,19 +30,9 @@ import { useAuth } from "@/contexts/AuthContext";
 const data = {
   teams: [
     {
-      name: "Acme Inc",
+      name: "Cmpss Inc",
       logo: GalleryVerticalEnd,
       plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
     },
   ],
   navMain: [
@@ -55,32 +46,17 @@ const data = {
           title: "Overview",
           url: "/dashboard",
         },
-        {
-          title: "Analytics",
-          url: "/dashboard/analytics",
-        },
-        {
-          title: "Reports",
-          url: "/dashboard/reports",
-        },
       ],
     },
+
     {
-      title: "Users",
-      url: "/users",
-      icon: Bot,
+      title: "Payments",
+      url: "/payments",
+      icon: CreditCard,
       items: [
         {
-          title: "All Users",
-          url: "/users",
-        },
-        {
-          title: "Active Users",
-          url: "/users/active",
-        },
-        {
-          title: "User Groups",
-          url: "/users/groups",
+          title: "All Payments",
+          url: "/payments",
         },
       ],
     },
@@ -104,23 +80,7 @@ const data = {
       ],
     },
   ],
-  projects: [
-    {
-      name: "Design Engineering",
-      url: "#",
-      icon: Frame,
-    },
-    {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: Map,
-    },
-  ],
+  projects: [],
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -140,7 +100,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
+        {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userData} />

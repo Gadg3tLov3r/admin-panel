@@ -8,8 +8,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { Toaster } from "sonner";
 import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
-import UsersPage from "@/pages/UsersPage";
-import SettingsPage from "@/pages/SettingsPage";
+
+import PaymentsPage from "@/pages/PaymentsPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function App() {
@@ -28,18 +28,10 @@ export default function App() {
               }
             />
             <Route
-              path="/users"
+              path="/payments"
               element={
                 <ProtectedRoute>
-                  <UsersPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <SettingsPage />
+                  <PaymentsPage />
                 </ProtectedRoute>
               }
             />
