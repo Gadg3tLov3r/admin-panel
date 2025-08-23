@@ -34,6 +34,11 @@ export interface PaymentsResponse {
   page: number;
   per_page: number;
   total_pages: number;
+  total_amount: string;
+  total_merchant_fee: string;
+  total_success: [number, string];
+  total_failed: [number, string];
+  total_pending: [number, string];
 }
 
 export interface PaymentFilters {
@@ -44,4 +49,4 @@ export interface PaymentFilters {
   payment_method?: string;
   date_from?: string;
   date_to?: string;
-} 
+}

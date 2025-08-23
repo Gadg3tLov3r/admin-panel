@@ -47,12 +47,30 @@ export default function PaymentsPage() {
   const [total, setTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentMethodIdFilter, setPaymentMethodIdFilter] = useState("");
-  const [currencyIdFilter, setCurrencyIdFilter] = useState("");
+  const [currencyIdFilter, setCurrencyIdFilter] = useState("2");
   const [merchantIdFilter, setMerchantIdFilter] = useState("");
   const [merchantPaymentIdFilter, setMerchantPaymentIdFilter] = useState("");
   const [cmpssPaymentIdFilter, setCmpssPaymentIdFilter] = useState("");
-  const [startDateFilter, setStartDateFilter] = useState("");
-  const [endDateFilter, setEndDateFilter] = useState("");
+  const [startDateFilter, setStartDateFilter] = useState(() => {
+    // Set default start date to today at 00:00
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today.toISOString().slice(0, 16);
+  });
+  const [endDateFilter, setEndDateFilter] = useState(() => {
+    // Set default end date to today at 23:59
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return today.toISOString().slice(0, 16);
+  });
+  const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    total_amount: "0",
+    total_merchant_fee: "0",
+    total_success: [0, "0"] as [number, string],
+    total_failed: [0, "0"] as [number, string],
+    total_pending: [0, "0"] as [number, string],
+  });
 
   // Fetch payments data
   const fetchPayments = async () => {
@@ -80,9 +98,47 @@ export default function PaymentsPage() {
       setPayments(data.payments);
       setTotalPages(data.total_pages);
       setTotal(data.total);
-    } catch (error) {
+
+      // Extract stats from the API response
+      setStats({
+        total_amount: data.total_amount || "0",
+        total_merchant_fee: data.total_merchant_fee || "0",
+        total_success: data.total_success || [0, "0"],
+        total_failed: data.total_failed || [0, "0"],
+        total_pending: data.total_pending || [0, "0"],
+      });
+
+      setPermissionError(null); // Clear any previous permission errors
+    } catch (error: any) {
       console.error("Error fetching payments:", error);
-      toast.error("Failed to load payments. Please try again.");
+
+      // Handle permission errors specifically
+      if (error.response?.status === 403) {
+        const errorDetail = error.response?.data?.detail;
+        if (errorDetail && errorDetail.includes("Missing admin permission")) {
+          // Extract the permission name from the error
+          const permissionMatch = errorDetail.match(
+            /Missing admin permission: (.+)/
+          );
+          const permission = permissionMatch ? permissionMatch[1] : "unknown";
+
+          setPermissionError(
+            `You don't have permission to view payments (${permission})`
+          );
+          toast.error(
+            `Access denied: You don't have permission to view payments (${permission})`
+          );
+        } else {
+          setPermissionError("Insufficient permissions to view payments");
+          toast.error(
+            "Access denied: Insufficient permissions to view payments"
+          );
+        }
+      } else {
+        setPermissionError(null);
+        toast.error("Failed to load payments. Please try again.");
+      }
+
       // Set empty state on error
       setPayments([]);
       setTotalPages(0);
@@ -148,16 +204,43 @@ export default function PaymentsPage() {
     setCurrentPage(1);
   };
 
+  // Check if filters are at default values
+  const isDefaultFilter = (filterName: string, value: string) => {
+    if (filterName === "currency_id" && value === "2") return true;
+    if (filterName === "start_date" || filterName === "end_date") {
+      const today = new Date();
+      const startOfDay = new Date(today);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(today);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      if (filterName === "start_date") {
+        return value === startOfDay.toISOString().slice(0, 16);
+      }
+      if (filterName === "end_date") {
+        return value === endOfDay.toISOString().slice(0, 16);
+      }
+    }
+    return false;
+  };
+
   const clearFilters = () => {
     setStatusFilter("");
     setPaymentMethodIdFilter("");
-    setCurrencyIdFilter("");
+    setCurrencyIdFilter("2"); // Reset to default currency ID
     setMerchantIdFilter("");
     setMerchantPaymentIdFilter("");
     setCmpssPaymentIdFilter("");
-    setStartDateFilter("");
-    setEndDateFilter("");
+    // Reset to today's date range
+    const today = new Date();
+    const startOfDay = new Date(today);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+    setStartDateFilter(startOfDay.toISOString().slice(0, 16));
+    setEndDateFilter(endOfDay.toISOString().slice(0, 16));
     setCurrentPage(1);
+    setPermissionError(null); // Clear permission errors when filters are cleared
   };
 
   const handleRefresh = () => {
@@ -268,9 +351,7 @@ export default function PaymentsPage() {
                 </p>
                 <p className="text-2xl font-bold">
                   {formatCurrency(
-                    payments
-                      .reduce((sum, p) => sum + parseFloat(p.order_amount), 0)
-                      .toFixed(2),
+                    stats.total_amount,
                     payments[0]?.currency_code || "USD"
                   )}
                 </p>
@@ -290,12 +371,7 @@ export default function PaymentsPage() {
                 </p>
                 <p className="text-2xl font-bold text-purple-600">
                   {formatCurrency(
-                    payments
-                      .reduce(
-                        (sum, p) => sum + parseFloat(p.merchant_fee || "0"),
-                        0
-                      )
-                      .toFixed(2),
+                    stats.total_merchant_fee,
                     payments[0]?.currency_code || "USD"
                   )}
                 </p>
@@ -314,10 +390,13 @@ export default function PaymentsPage() {
                   Successful
                 </p>
                 <p className="text-2xl font-bold text-green-600">
-                  {
-                    payments.filter((p) => p.order_status === "completed")
-                      .length
-                  }
+                  {formatCurrency(
+                    stats.total_success[1],
+                    payments[0]?.currency_code || "USD"
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {stats.total_success[0]} payments
                 </p>
               </div>
               <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
@@ -334,7 +413,13 @@ export default function PaymentsPage() {
                   Failed
                 </p>
                 <p className="text-2xl font-bold text-red-600">
-                  {payments.filter((p) => p.order_status === "failed").length}
+                  {formatCurrency(
+                    stats.total_failed[1],
+                    payments[0]?.currency_code || "USD"
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {stats.total_failed[0]} payments
                 </p>
               </div>
               <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
@@ -351,7 +436,13 @@ export default function PaymentsPage() {
                   Pending
                 </p>
                 <p className="text-2xl font-bold text-yellow-600">
-                  {payments.filter((p) => p.order_status === "pending").length}
+                  {formatCurrency(
+                    stats.total_pending[1],
+                    payments[0]?.currency_code || "USD"
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {stats.total_pending[0]} payments
                 </p>
               </div>
               <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
@@ -513,8 +604,17 @@ export default function PaymentsPage() {
                     </Badge>
                   )}
                   {currencyIdFilter && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge
+                      variant={
+                        isDefaultFilter("currency_id", currencyIdFilter)
+                          ? "default"
+                          : "secondary"
+                      }
+                      className="text-xs"
+                    >
                       Currency ID: {currencyIdFilter}
+                      {isDefaultFilter("currency_id", currencyIdFilter) &&
+                        " (Default)"}
                     </Badge>
                   )}
                   {merchantIdFilter && (
@@ -533,13 +633,31 @@ export default function PaymentsPage() {
                     </Badge>
                   )}
                   {startDateFilter && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge
+                      variant={
+                        isDefaultFilter("start_date", startDateFilter)
+                          ? "default"
+                          : "secondary"
+                      }
+                      className="text-xs"
+                    >
                       From: {new Date(startDateFilter).toLocaleString()}
+                      {isDefaultFilter("start_date", startDateFilter) &&
+                        " (Default)"}
                     </Badge>
                   )}
                   {endDateFilter && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge
+                      variant={
+                        isDefaultFilter("end_date", endDateFilter)
+                          ? "default"
+                          : "secondary"
+                      }
+                      className="text-xs"
+                    >
                       To: {new Date(endDateFilter).toLocaleString()}
+                      {isDefaultFilter("end_date", endDateFilter) &&
+                        " (Default)"}
                     </Badge>
                   )}
                 </div>
@@ -592,33 +710,55 @@ export default function PaymentsPage() {
             </div>
           ) : payments.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <span className="text-2xl">💳</span>
-              </div>
-              <h3 className="text-lg font-semibold mb-2">No payments found</h3>
-              <p className="text-muted-foreground text-center mb-4">
-                {statusFilter ||
-                paymentMethodIdFilter ||
-                currencyIdFilter ||
-                merchantIdFilter ||
-                merchantPaymentIdFilter ||
-                cmpssPaymentIdFilter ||
-                startDateFilter ||
-                endDateFilter
-                  ? "Try adjusting your filters to see more results."
-                  : "There are no payments to display at the moment."}
-              </p>
-              {(statusFilter ||
-                paymentMethodIdFilter ||
-                currencyIdFilter ||
-                merchantIdFilter ||
-                merchantPaymentIdFilter ||
-                cmpssPaymentIdFilter ||
-                startDateFilter ||
-                endDateFilter) && (
-                <Button variant="outline" onClick={clearFilters}>
-                  Clear all filters
-                </Button>
+              {permissionError ? (
+                <>
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                    <span className="text-2xl">🚫</span>
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2 text-red-600">
+                    Access Denied
+                  </h3>
+                  <p className="text-muted-foreground text-center mb-4">
+                    {permissionError}
+                  </p>
+                  <p className="text-sm text-muted-foreground text-center">
+                    Please contact your administrator if you believe this is an
+                    error.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <span className="text-2xl">💳</span>
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">
+                    No payments found
+                  </h3>
+                  <p className="text-muted-foreground text-center mb-4">
+                    {statusFilter ||
+                    paymentMethodIdFilter ||
+                    currencyIdFilter ||
+                    merchantIdFilter ||
+                    merchantPaymentIdFilter ||
+                    cmpssPaymentIdFilter ||
+                    startDateFilter ||
+                    endDateFilter
+                      ? "Try adjusting your filters to see more results."
+                      : "There are no payments to display at the moment."}
+                  </p>
+                  {(statusFilter ||
+                    paymentMethodIdFilter ||
+                    currencyIdFilter ||
+                    merchantIdFilter ||
+                    merchantPaymentIdFilter ||
+                    cmpssPaymentIdFilter ||
+                    startDateFilter ||
+                    endDateFilter) && (
+                    <Button variant="outline" onClick={clearFilters}>
+                      Clear all filters
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           ) : (
