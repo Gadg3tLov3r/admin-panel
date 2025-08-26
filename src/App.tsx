@@ -10,6 +10,7 @@ import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
 
 import PaymentsPage from "@/pages/PaymentsPage";
+import DisbursementsPage from "@/pages/DisbursementsPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function App() {
@@ -32,6 +33,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <PaymentsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/disbursements"
+              element={
+                <ProtectedRoute>
+                  <DisbursementsPage />
                 </ProtectedRoute>
               }
             />

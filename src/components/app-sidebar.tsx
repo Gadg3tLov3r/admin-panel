@@ -11,6 +11,7 @@ import {
   Settings2,
   SquareTerminal,
   CreditCard,
+  Wallet,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -57,6 +58,17 @@ const data = {
         {
           title: "All Payments",
           url: "/payments",
+        },
+      ],
+    },
+    {
+      title: "Disbursements",
+      url: "/disbursements",
+      icon: Wallet,
+      items: [
+        {
+          title: "All Disbursements",
+          url: "/disbursements",
         },
       ],
     },
