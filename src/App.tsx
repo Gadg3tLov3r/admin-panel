@@ -11,6 +11,7 @@ import DashboardPage from "@/pages/DashboardPage";
 
 import PaymentsPage from "@/pages/PaymentsPage";
 import DisbursementsPage from "@/pages/DisbursementsPage";
+import ChangePasswordPage from "@/pages/ChangePasswordPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function App() {
@@ -41,6 +42,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <DisbursementsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/change-password"
+              element={
+                <ProtectedRoute>
+                  <ChangePasswordPage />
                 </ProtectedRoute>
               }
             />

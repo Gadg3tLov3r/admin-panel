@@ -100,6 +100,21 @@ export const authService = {
   getToken(): string | null {
     return localStorage.getItem("access_token");
   },
+
+  // Change password function
+  async changePassword(
+    currentPassword: string,
+    newPassword: string
+  ): Promise<void> {
+    try {
+      await api.post("/auth/change-password", {
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+    } catch (error) {
+      throw error;
+    }
+  },
 };
 
 export default api;

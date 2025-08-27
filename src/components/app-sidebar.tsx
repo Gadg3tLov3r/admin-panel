@@ -89,6 +89,10 @@ const data = {
           title: "Billing",
           url: "/settings/billing",
         },
+        {
+          title: "Change Password",
+          url: "/change-password",
+        },
       ],
     },
   ],
