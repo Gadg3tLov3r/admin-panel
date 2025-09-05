@@ -15,7 +15,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -71,6 +86,12 @@ export default function PaymentsPage() {
     total_failed: [0, "0"] as [number, string],
     total_pending: [0, "0"] as [number, string],
   });
+
+  // Update TPPI dialog state
+  const [updateTppiDialogOpen, setUpdateTppiDialogOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [tppiValue, setTppiValue] = useState("");
+  const [updatingTppi, setUpdatingTppi] = useState(false);
 
   // Fetch payments data
   const fetchPayments = async () => {
@@ -246,6 +267,69 @@ export default function PaymentsPage() {
   const handleRefresh = () => {
     fetchPayments();
     toast.success("Payments refreshed");
+  };
+
+  // Update TPPI function
+  const updateTppi = async (cmpssPaymentId: string, tppi: string) => {
+    try {
+      const response = await api.post(
+        "/admin-panel/payments/update-third-party-id",
+        {
+          cmpss_payment_id: cmpssPaymentId,
+          tppi: tppi,
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error("Error updating TPPI:", error);
+      throw error;
+    }
+  };
+
+  // Handle update TPPI
+  const handleUpdateTppi = async () => {
+    if (!selectedPayment || !tppiValue.trim()) {
+      toast.error("Please enter a valid TPPI value");
+      return;
+    }
+
+    setUpdatingTppi(true);
+    try {
+      await updateTppi(selectedPayment.cmpss_payment_id, tppiValue.trim());
+      toast.success("TPPI updated successfully");
+      setUpdateTppiDialogOpen(false);
+      setSelectedPayment(null);
+      setTppiValue("");
+      // Refresh the payments data
+      fetchPayments();
+    } catch (error: any) {
+      console.error("Error updating TPPI:", error);
+      if (error.response?.status === 403) {
+        toast.error("Access denied: You don't have permission to update TPPI");
+      } else if (error.response?.data?.detail) {
+        toast.error(`Error: ${error.response.data.detail}`);
+      } else {
+        toast.error("Failed to update TPPI. Please try again.");
+      }
+    } finally {
+      setUpdatingTppi(false);
+    }
+  };
+
+  // Open update TPPI dialog
+  const openUpdateTppiDialog = (payment: Payment) => {
+    setSelectedPayment(payment);
+    setTppiValue("");
+    setUpdateTppiDialogOpen(true);
+  };
+
+  // Check if payment is eligible for TPPI update
+  const isEligibleForTppiUpdate = (payment: Payment) => {
+    return (
+      payment.order_status === "failed" &&
+      (payment.third_party_provider_id === "-1" ||
+        payment.third_party_provider_id === null)
+    );
   };
 
   const handleCopyToClipboard = async (text: string) => {
@@ -678,6 +762,25 @@ export default function PaymentsPage() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="per-page" className="text-sm">
+                  Per page:
+                </Label>
+                <Select
+                  value={perPage.toString()}
+                  onValueChange={(value) => setPerPage(parseInt(value))}
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button
                 variant="outline"
                 onClick={handleRefresh}
@@ -847,10 +950,29 @@ export default function PaymentsPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
+                      <div className="flex items-center justify-end">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {isEligibleForTppiUpdate(payment) && (
+                              <DropdownMenuItem
+                                onClick={() => openUpdateTppiDialog(payment)}
+                              >
+                                Update TPPI
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem disabled>
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled>
+                              Download Receipt
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -951,6 +1073,69 @@ export default function PaymentsPage() {
           </div>
         </div>
       )}
+
+      {/* Update TPPI Dialog */}
+      <Dialog
+        open={updateTppiDialogOpen}
+        onOpenChange={setUpdateTppiDialogOpen}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update Third Party Provider ID</DialogTitle>
+            <DialogDescription>
+              Update the third party provider ID for payment{" "}
+              <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                {selectedPayment?.cmpss_payment_id}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="tppi">Third Party Provider ID</Label>
+              <Input
+                id="tppi"
+                placeholder="Enter TPPI value..."
+                value={tppiValue}
+                onChange={(e) => setTppiValue(e.target.value)}
+                disabled={updatingTppi}
+              />
+            </div>
+            {selectedPayment && (
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>
+                  <strong>Current TPPI:</strong>{" "}
+                  {selectedPayment.third_party_provider_id || "Not set"}
+                </p>
+                <p>
+                  <strong>Status:</strong> {selectedPayment.order_status}
+                </p>
+                <p>
+                  <strong>Amount:</strong>{" "}
+                  {formatCurrency(
+                    selectedPayment.order_amount,
+                    selectedPayment.currency_code
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setUpdateTppiDialogOpen(false)}
+              disabled={updatingTppi}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateTppi}
+              disabled={updatingTppi || !tppiValue.trim()}
+            >
+              {updatingTppi ? "Updating..." : "Update TPPI"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AuthenticatedLayout>
   );
 }
