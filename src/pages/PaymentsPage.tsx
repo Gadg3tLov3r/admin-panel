@@ -272,13 +272,10 @@ export default function PaymentsPage() {
   // Update TPPI function
   const updateTppi = async (cmpssPaymentId: string, tppi: string) => {
     try {
-      const response = await api.post(
-        "/admin-panel/payments/update-third-party-id",
-        {
-          cmpss_payment_id: cmpssPaymentId,
-          tppi: tppi,
-        }
-      );
+      const response = await api.post("/payments/update-third-party-id", {
+        cmpss_payment_id: cmpssPaymentId,
+        tppi: tppi,
+      });
       return response.data;
     } catch (error: any) {
       console.error("Error updating TPPI:", error);
