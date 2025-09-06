@@ -10,7 +10,9 @@ import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
 
 import PaymentsPage from "@/pages/PaymentsPage";
+import PaymentDetailsPage from "@/pages/PaymentDetailsPage";
 import DisbursementsPage from "@/pages/DisbursementsPage";
+import DisbursementDetailsPage from "@/pages/DisbursementDetailsPage";
 import ChangePasswordPage from "@/pages/ChangePasswordPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
@@ -38,10 +40,26 @@ export default function App() {
               }
             />
             <Route
+              path="/payments/:paymentId"
+              element={
+                <ProtectedRoute>
+                  <PaymentDetailsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/disbursements"
               element={
                 <ProtectedRoute>
                   <DisbursementsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/disbursements/:disbursementId"
+              element={
+                <ProtectedRoute>
+                  <DisbursementDetailsPage />
                 </ProtectedRoute>
               }
             />

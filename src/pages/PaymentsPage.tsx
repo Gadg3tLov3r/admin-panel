@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -52,8 +53,10 @@ import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { toast } from "sonner";
 import { Payment, PaymentsResponse } from "@/types/payment";
 import api from "@/lib/auth";
+import { DatePicker } from "@/components/DatePicker";
 
 export default function PaymentsPage() {
+  const navigate = useNavigate();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -66,18 +69,17 @@ export default function PaymentsPage() {
   const [merchantIdFilter, setMerchantIdFilter] = useState("");
   const [merchantPaymentIdFilter, setMerchantPaymentIdFilter] = useState("");
   const [cmpssPaymentIdFilter, setCmpssPaymentIdFilter] = useState("");
-  const [startDateFilter, setStartDateFilter] = useState(() => {
-    // Set default start date to today at 00:00
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today.toISOString().slice(0, 16);
-  });
-  const [endDateFilter, setEndDateFilter] = useState(() => {
-    // Set default end date to today at 23:59
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    return today.toISOString().slice(0, 16);
-  });
+  const [startDateFilter, setStartDateFilter] = useState<Date | undefined>(
+    () => {
+      // Set default start date to today at 00:00
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return today;
+    }
+  );
+  const [endDateFilter, setEndDateFilter] = useState<Date | undefined>(
+    undefined
+  );
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [stats, setStats] = useState({
     total_amount: "0",
@@ -110,8 +112,12 @@ export default function PaymentsPage() {
           merchant_payment_id: merchantPaymentIdFilter,
         }),
         ...(cmpssPaymentIdFilter && { cmpss_payment_id: cmpssPaymentIdFilter }),
-        ...(startDateFilter && { start_date: startDateFilter }),
-        ...(endDateFilter && { end_date: endDateFilter }),
+        ...(startDateFilter && {
+          start_date: startDateFilter.toISOString().slice(0, 16),
+        }),
+        ...(endDateFilter && {
+          end_date: endDateFilter.toISOString().slice(0, 16),
+        }),
       };
 
       const response = await api.get<PaymentsResponse>("/payments", { params });
@@ -215,18 +221,35 @@ export default function PaymentsPage() {
     setCurrentPage(1);
   };
 
-  const handleStartDateFilter = (value: string) => {
-    setStartDateFilter(value);
+  const handleStartDateFilter = (value: Date | undefined) => {
+    if (value) {
+      // Set to start of day
+      const startOfDay = new Date(value);
+      startOfDay.setHours(0, 0, 0, 0);
+      setStartDateFilter(startOfDay);
+    } else {
+      setStartDateFilter(undefined);
+    }
     setCurrentPage(1);
   };
 
-  const handleEndDateFilter = (value: string) => {
-    setEndDateFilter(value);
+  const handleEndDateFilter = (value: Date | undefined) => {
+    if (value) {
+      // Set to end of day
+      const endOfDay = new Date(value);
+      endOfDay.setHours(23, 59, 59, 999);
+      setEndDateFilter(endOfDay);
+    } else {
+      setEndDateFilter(undefined);
+    }
     setCurrentPage(1);
   };
 
   // Check if filters are at default values
-  const isDefaultFilter = (filterName: string, value: string) => {
+  const isDefaultFilter = (
+    filterName: string,
+    value: string | Date | undefined
+  ) => {
     if (filterName === "currency_id" && value === "2") return true;
     if (filterName === "start_date" || filterName === "end_date") {
       const today = new Date();
@@ -235,11 +258,11 @@ export default function PaymentsPage() {
       const endOfDay = new Date(today);
       endOfDay.setHours(23, 59, 59, 999);
 
-      if (filterName === "start_date") {
-        return value === startOfDay.toISOString().slice(0, 16);
+      if (filterName === "start_date" && value instanceof Date) {
+        return value.getTime() === startOfDay.getTime();
       }
-      if (filterName === "end_date") {
-        return value === endOfDay.toISOString().slice(0, 16);
+      if (filterName === "end_date" && value instanceof Date) {
+        return value.getTime() === endOfDay.getTime();
       }
     }
     return false;
@@ -252,14 +275,12 @@ export default function PaymentsPage() {
     setMerchantIdFilter("");
     setMerchantPaymentIdFilter("");
     setCmpssPaymentIdFilter("");
-    // Reset to today's date range
+    // Reset to today's start date and clear end date
     const today = new Date();
     const startOfDay = new Date(today);
     startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
-    setStartDateFilter(startOfDay.toISOString().slice(0, 16));
-    setEndDateFilter(endOfDay.toISOString().slice(0, 16));
+    setStartDateFilter(startOfDay);
+    setEndDateFilter(undefined);
     setCurrentPage(1);
     setPermissionError(null); // Clear permission errors when filters are cleared
   };
@@ -336,6 +357,10 @@ export default function PaymentsPage() {
     } catch (error) {
       toast.error("Failed to copy to clipboard");
     }
+  };
+
+  const handleViewDetails = (payment: Payment) => {
+    navigate(`/payments/${payment.id}`);
   };
 
   const handleExport = () => {
@@ -577,22 +602,20 @@ export default function PaymentsPage() {
                 <label className="text-sm font-medium text-muted-foreground">
                   Start Date
                 </label>
-                <Input
-                  type="datetime-local"
-                  className="w-full"
-                  value={startDateFilter}
-                  onChange={(e) => handleStartDateFilter(e.target.value)}
+                <DatePicker
+                  selected={startDateFilter}
+                  onSelect={handleStartDateFilter}
+                  placeholder="Select start date"
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">
                   End Date
                 </label>
-                <Input
-                  type="datetime-local"
-                  className="w-full"
-                  value={endDateFilter}
-                  onChange={(e) => handleEndDateFilter(e.target.value)}
+                <DatePicker
+                  selected={endDateFilter}
+                  onSelect={handleEndDateFilter}
+                  placeholder="Select end date"
                 />
               </div>
             </div>
@@ -722,7 +745,7 @@ export default function PaymentsPage() {
                       }
                       className="text-xs"
                     >
-                      From: {new Date(startDateFilter).toLocaleString()}
+                      From: {startDateFilter.toLocaleDateString()}
                       {isDefaultFilter("start_date", startDateFilter) &&
                         " (Default)"}
                     </Badge>
@@ -736,7 +759,7 @@ export default function PaymentsPage() {
                       }
                       className="text-xs"
                     >
-                      To: {new Date(endDateFilter).toLocaleString()}
+                      To: {endDateFilter.toLocaleDateString()}
                       {isDefaultFilter("end_date", endDateFilter) &&
                         " (Default)"}
                     </Badge>
@@ -962,7 +985,9 @@ export default function PaymentsPage() {
                                 Update TPPI
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem disabled>
+                            <DropdownMenuItem
+                              onClick={() => handleViewDetails(payment)}
+                            >
                               View Details
                             </DropdownMenuItem>
                             <DropdownMenuItem disabled>
