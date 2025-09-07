@@ -81,6 +81,10 @@ export default function PaymentsPage() {
     undefined
   );
   const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [retryingCallback, setRetryingCallback] = useState<number | null>(null);
+  const [retryingVerification, setRetryingVerification] = useState<
+    number | null
+  >(null);
   const [stats, setStats] = useState({
     total_amount: "0",
     total_merchant_fee: "0",
@@ -350,6 +354,11 @@ export default function PaymentsPage() {
     );
   };
 
+  // Check if payment is eligible for retry verification
+  const isEligibleForRetryVerification = (payment: Payment) => {
+    return payment.order_status === "processing";
+  };
+
   const handleCopyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -361,6 +370,60 @@ export default function PaymentsPage() {
 
   const handleViewDetails = (payment: Payment) => {
     navigate(`/payments/${payment.id}`);
+  };
+
+  const handleRetryCallback = async (payment: Payment) => {
+    setRetryingCallback(payment.id);
+    try {
+      await api.post("/payments/trigger-callback", {
+        cmpss_payment_id: payment.cmpss_payment_id,
+      });
+      toast.success("Callback triggered successfully");
+    } catch (error: any) {
+      console.error("Error triggering callback:", error);
+      if (error.response?.status === 403) {
+        toast.error(
+          "Access denied: You don't have permission to trigger callbacks"
+        );
+      } else if (error.response?.data?.detail) {
+        toast.error(`Error: ${error.response.data.detail}`);
+      } else {
+        toast.error("Failed to trigger callback. Please try again.");
+      }
+    } finally {
+      setRetryingCallback(null);
+    }
+  };
+
+  const handleRetryVerification = async (payment: Payment) => {
+    setRetryingVerification(payment.id);
+    try {
+      await api.post(
+        "/payments/query-timeout-order",
+        {
+          cmpss_payment_id: payment.cmpss_payment_id,
+        },
+        {
+          headers: {
+            "x-do-secret": "df0f5bfc-a858-4b2d-9041-af2651c0cfe9",
+          },
+        }
+      );
+      toast.success("Verification retry triggered successfully");
+    } catch (error: any) {
+      console.error("Error triggering verification retry:", error);
+      if (error.response?.status === 403) {
+        toast.error(
+          "Access denied: You don't have permission to retry verification"
+        );
+      } else if (error.response?.data?.detail) {
+        toast.error(`Error: ${error.response.data.detail}`);
+      } else {
+        toast.error("Failed to trigger verification retry. Please try again.");
+      }
+    } finally {
+      setRetryingVerification(null);
+    }
   };
 
   const handleExport = () => {
@@ -408,6 +471,7 @@ export default function PaymentsPage() {
   const getStatusBadge = (status: string) => {
     const statusColors = {
       pending: "bg-yellow-100 text-yellow-800",
+      processing: "bg-blue-100 text-blue-800",
       completed: "bg-green-100 text-green-800",
       failed: "bg-red-100 text-red-800",
       cancelled: "bg-gray-100 text-gray-800",
@@ -636,6 +700,7 @@ export default function PaymentsPage() {
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                     <SelectItem value="failed">Failed</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -990,6 +1055,34 @@ export default function PaymentsPage() {
                             >
                               View Details
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleRetryCallback(payment)}
+                              disabled={retryingCallback === payment.id}
+                            >
+                              {retryingCallback === payment.id ? (
+                                <>
+                                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                  Retrying...
+                                </>
+                              ) : (
+                                "Retry Callback"
+                              )}
+                            </DropdownMenuItem>
+                            {isEligibleForRetryVerification(payment) && (
+                              <DropdownMenuItem
+                                onClick={() => handleRetryVerification(payment)}
+                                disabled={retryingVerification === payment.id}
+                              >
+                                {retryingVerification === payment.id ? (
+                                  <>
+                                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                    Retrying...
+                                  </>
+                                ) : (
+                                  "Retry Verification"
+                                )}
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem disabled>
                               Download Receipt
                             </DropdownMenuItem>
