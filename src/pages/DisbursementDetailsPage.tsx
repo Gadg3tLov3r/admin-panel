@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Copy, Download } from "lucide-react";
+import { ArrowLeft, Copy, Download, RotateCcw } from "lucide-react";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { toast } from "sonner";
 import { Disbursement } from "@/types/disbursement";
@@ -22,6 +22,7 @@ export default function DisbursementDetailsPage() {
   const [disbursement, setDisbursement] = useState<Disbursement | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [repushing, setRepushing] = useState(false);
 
   useEffect(() => {
     if (disbursementId && !isNaN(Number(disbursementId))) {
@@ -79,6 +80,58 @@ export default function DisbursementDetailsPage() {
     window.URL.revokeObjectURL(url);
 
     toast.success("Disbursement details downloaded");
+  };
+
+  const handleRepushDisbursement = async () => {
+    if (!disbursement) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to repush disbursement ${disbursement.cmpss_disbursement_id}?`
+    );
+    if (!confirmed) return;
+
+    setRepushing(true);
+    try {
+      await api.post("/disbursements/repush-disbursement-order", {
+        cmpss_disbursement_id: disbursement.cmpss_disbursement_id,
+      });
+      toast.success("Disbursement repush triggered successfully");
+      // Refresh the disbursement details to get updated status
+      fetchDisbursementDetails();
+    } catch (error: any) {
+      console.error("Error repushing disbursement:", error);
+      if (error.response?.status === 403) {
+        toast.error(
+          "Access denied: You don't have permission to repush disbursements"
+        );
+      } else if (error.response?.data?.detail) {
+        toast.error(`Error: ${error.response.data.detail}`);
+      } else {
+        toast.error("Failed to repush disbursement. Please try again.");
+      }
+    } finally {
+      setRepushing(false);
+    }
+  };
+
+  // Check if disbursement is eligible for repush
+  const isEligibleForRepush = (disbursement: Disbursement) => {
+    // Check if status is pending or processing
+    const validStatus =
+      disbursement.order_status === "pending" ||
+      disbursement.order_status === "processing";
+
+    // Check if third_party_provider_id is null or blank
+    const noThirdPartyProvider =
+      !disbursement.third_party_provider_id ||
+      disbursement.third_party_provider_id.trim() === "";
+
+    // Check if created_at is greater than 1 hour ago
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const createdAt = new Date(disbursement.created_at);
+    const isOlderThanOneHour = createdAt < oneHourAgo;
+
+    return validStatus && noThirdPartyProvider && isOlderThanOneHour;
   };
 
   const getStatusBadge = (status: string) => {
@@ -175,6 +228,19 @@ export default function DisbursementDetailsPage() {
             Back to Disbursements
           </Button>
           <div className="flex items-center gap-2">
+            {isEligibleForRepush(disbursement) && (
+              <Button
+                variant="outline"
+                onClick={handleRepushDisbursement}
+                disabled={repushing}
+                className="flex items-center gap-2"
+              >
+                <RotateCcw
+                  className={`w-4 h-4 ${repushing ? "animate-spin" : ""}`}
+                />
+                {repushing ? "Repushing..." : "Repush Disbursement"}
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={() =>

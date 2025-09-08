@@ -9,7 +9,17 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Copy, Download } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ArrowLeft, Copy, Download, Settings } from "lucide-react";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { toast } from "sonner";
 import { Payment } from "@/types/payment";
@@ -22,6 +32,11 @@ export default function PaymentDetailsPage() {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Update TPPI dialog state
+  const [updateTppiDialogOpen, setUpdateTppiDialogOpen] = useState(false);
+  const [tppiValue, setTppiValue] = useState("");
+  const [updatingTppi, setUpdatingTppi] = useState(false);
 
   useEffect(() => {
     if (paymentId && !isNaN(Number(paymentId))) {
@@ -77,6 +92,71 @@ export default function PaymentDetailsPage() {
     window.URL.revokeObjectURL(url);
 
     toast.success("Payment details downloaded");
+  };
+
+  // Update TPPI function
+  const updateTppi = async (cmpssPaymentId: string, tppi: string) => {
+    try {
+      const response = await api.post("/payments/update-third-party-id", {
+        cmpss_payment_id: cmpssPaymentId,
+        tppi: tppi,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("Error updating TPPI:", error);
+      throw error;
+    }
+  };
+
+  // Handle update TPPI
+  const handleUpdateTppi = async () => {
+    if (!payment || !tppiValue.trim()) {
+      toast.error("Please enter a valid TPPI value");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to update the TPPI for payment ${
+        payment.cmpss_payment_id
+      } to "${tppiValue.trim()}"?`
+    );
+    if (!confirmed) return;
+
+    setUpdatingTppi(true);
+    try {
+      await updateTppi(payment.cmpss_payment_id, tppiValue.trim());
+      toast.success("TPPI updated successfully");
+      setUpdateTppiDialogOpen(false);
+      setTppiValue("");
+      // Refresh the payment details
+      fetchPaymentDetails();
+    } catch (error: any) {
+      console.error("Error updating TPPI:", error);
+      if (error.response?.status === 403) {
+        toast.error("Access denied: You don't have permission to update TPPI");
+      } else if (error.response?.data?.detail) {
+        toast.error(`Error: ${error.response.data.detail}`);
+      } else {
+        toast.error("Failed to update TPPI. Please try again.");
+      }
+    } finally {
+      setUpdatingTppi(false);
+    }
+  };
+
+  // Open update TPPI dialog
+  const openUpdateTppiDialog = () => {
+    setTppiValue("");
+    setUpdateTppiDialogOpen(true);
+  };
+
+  // Check if payment is eligible for TPPI update
+  const isEligibleForTppiUpdate = (payment: Payment) => {
+    return (
+      payment.order_status === "failed" &&
+      (payment.third_party_provider_id === "-1" ||
+        payment.third_party_provider_id === null)
+    );
   };
 
   const getStatusBadge = (status: string) => {
@@ -173,6 +253,16 @@ export default function PaymentDetailsPage() {
             Back to Payments
           </Button>
           <div className="flex items-center gap-2">
+            {isEligibleForTppiUpdate(payment) && (
+              <Button
+                variant="outline"
+                onClick={openUpdateTppiDialog}
+                className="flex items-center gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                Update TPPI
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={() =>
@@ -290,6 +380,27 @@ export default function PaymentDetailsPage() {
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
+                  Third Party Provider ID
+                </label>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="font-mono text-sm">
+                    {payment.third_party_provider_id || "Not set"}
+                  </p>
+                  {payment.third_party_provider_id && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        handleCopyToClipboard(payment.third_party_provider_id!)
+                      }
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
                   Updated At
                 </label>
                 <p className="text-sm mt-1">{formatDate(payment.updated_at)}</p>
@@ -326,6 +437,66 @@ export default function PaymentDetailsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Update TPPI Dialog */}
+      <Dialog
+        open={updateTppiDialogOpen}
+        onOpenChange={setUpdateTppiDialogOpen}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update Third Party Provider ID</DialogTitle>
+            <DialogDescription>
+              Update the third party provider ID for payment{" "}
+              <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                {payment?.cmpss_payment_id}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="tppi">Third Party Provider ID</Label>
+              <Input
+                id="tppi"
+                placeholder="Enter TPPI value..."
+                value={tppiValue}
+                onChange={(e) => setTppiValue(e.target.value)}
+                disabled={updatingTppi}
+              />
+            </div>
+            {payment && (
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>
+                  <strong>Current TPPI:</strong>{" "}
+                  {payment.third_party_provider_id || "Not set"}
+                </p>
+                <p>
+                  <strong>Status:</strong> {payment.order_status}
+                </p>
+                <p>
+                  <strong>Amount:</strong>{" "}
+                  {formatCurrency(payment.order_amount, payment.currency_code)}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setUpdateTppiDialogOpen(false)}
+              disabled={updatingTppi}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateTppi}
+              disabled={updatingTppi || !tppiValue.trim()}
+            >
+              {updatingTppi ? "Updating..." : "Update TPPI"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AuthenticatedLayout>
   );
 }

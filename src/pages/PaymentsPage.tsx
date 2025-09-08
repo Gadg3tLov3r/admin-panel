@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -16,15 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -42,7 +34,6 @@ import {
   ChevronRight,
   RefreshCw,
   Eye,
-  Settings,
   RotateCcw,
   CheckCircle,
 } from "lucide-react";
@@ -51,6 +42,7 @@ import { toast } from "sonner";
 import { Payment, PaymentsResponse } from "@/types/payment";
 import api from "@/lib/auth";
 import { DatePicker } from "@/components/DatePicker";
+import { Combobox } from "@/components/ui/combobox";
 
 export default function PaymentsPage() {
   const navigate = useNavigate();
@@ -83,10 +75,18 @@ export default function PaymentsPage() {
   const [retryingVerification, setRetryingVerification] = useState<
     number | null
   >(null);
-  const [currencies, setCurrencies] = useState<Array<{id: number, name: string, sign: string, country: string}>>([]);
-  const [paymentMethods, setPaymentMethods] = useState<Array<{id: number, name: string, payment_method_id: number}>>([]);
-  const [merchants, setMerchants] = useState<Array<{id: number, name: string}>>([]);
-  const [providers, setProviders] = useState<Array<{id: number, name: string}>>([]);
+  const [currencies, setCurrencies] = useState<
+    Array<{ id: number; name: string; sign: string; country: string }>
+  >([]);
+  const [paymentMethods, setPaymentMethods] = useState<
+    Array<{ id: number; name: string; payment_method_id: number }>
+  >([]);
+  const [merchants, setMerchants] = useState<
+    Array<{ id: number; name: string }>
+  >([]);
+  const [providers, setProviders] = useState<
+    Array<{ id: number; name: string }>
+  >([]);
   const [stats, setStats] = useState({
     total_amount: "0",
     total_provider_fee: "0",
@@ -95,12 +95,6 @@ export default function PaymentsPage() {
     total_failed: [0, "0"] as [number, string],
     total_pending: [0, "0"] as [number, string],
   });
-
-  // Update TPPI dialog state
-  const [updateTppiDialogOpen, setUpdateTppiDialogOpen] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
-  const [tppiValue, setTppiValue] = useState("");
-  const [updatingTppi, setUpdatingTppi] = useState(false);
 
   // Fetch currencies data
   const fetchCurrencies = useCallback(async () => {
@@ -118,17 +112,22 @@ export default function PaymentsPage() {
       const response = await api.get("/methods");
       // Extract payment methods from merchant_methods and get unique payment methods
       const merchantMethods = response.data.merchant_methods || [];
-      const uniqueMethods = merchantMethods.reduce((acc: any[], method: any) => {
-        const existingMethod = acc.find(m => m.payment_method_id === method.payment_method_id);
-        if (!existingMethod) {
-          acc.push({
-            id: method.payment_method_id,
-            name: method.payment_method.name,
-            payment_method_id: method.payment_method_id
-          });
-        }
-        return acc;
-      }, []);
+      const uniqueMethods = merchantMethods.reduce(
+        (acc: any[], method: any) => {
+          const existingMethod = acc.find(
+            (m) => m.payment_method_id === method.payment_method_id
+          );
+          if (!existingMethod) {
+            acc.push({
+              id: method.payment_method_id,
+              name: method.payment_method.name,
+              payment_method_id: method.payment_method_id,
+            });
+          }
+          return acc;
+        },
+        []
+      );
       setPaymentMethods(uniqueMethods);
     } catch (error) {
       console.error("Error fetching payment methods:", error);
@@ -361,73 +360,20 @@ export default function PaymentsPage() {
   };
 
   const handleRefresh = () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to refresh the payments data? This will reload all current data."
+    );
+    if (!confirmed) return;
+
     fetchPayments();
     toast.success("Payments refreshed");
   };
 
-  // Update TPPI function
-  const updateTppi = async (cmpssPaymentId: string, tppi: string) => {
-    try {
-      const response = await api.post("/payments/update-third-party-id", {
-        cmpss_payment_id: cmpssPaymentId,
-        tppi: tppi,
-      });
-      return response.data;
-    } catch (error: any) {
-      console.error("Error updating TPPI:", error);
-      throw error;
-    }
-  };
-
-  // Handle update TPPI
-  const handleUpdateTppi = async () => {
-    if (!selectedPayment || !tppiValue.trim()) {
-      toast.error("Please enter a valid TPPI value");
-      return;
-    }
-
-    setUpdatingTppi(true);
-    try {
-      await updateTppi(selectedPayment.cmpss_payment_id, tppiValue.trim());
-      toast.success("TPPI updated successfully");
-      setUpdateTppiDialogOpen(false);
-      setSelectedPayment(null);
-      setTppiValue("");
-      // Refresh the payments data
-      fetchPayments();
-    } catch (error: any) {
-      console.error("Error updating TPPI:", error);
-      if (error.response?.status === 403) {
-        toast.error("Access denied: You don't have permission to update TPPI");
-      } else if (error.response?.data?.detail) {
-        toast.error(`Error: ${error.response.data.detail}`);
-      } else {
-        toast.error("Failed to update TPPI. Please try again.");
-      }
-    } finally {
-      setUpdatingTppi(false);
-    }
-  };
-
-  // Open update TPPI dialog
-  const openUpdateTppiDialog = (payment: Payment) => {
-    setSelectedPayment(payment);
-    setTppiValue("");
-    setUpdateTppiDialogOpen(true);
-  };
-
-  // Check if payment is eligible for TPPI update
-  const isEligibleForTppiUpdate = (payment: Payment) => {
-    return (
-      payment.order_status === "failed" &&
-      (payment.third_party_provider_id === "-1" ||
-        payment.third_party_provider_id === null)
-    );
-  };
-
   // Check if payment is eligible for retry verification
   const isEligibleForRetryVerification = (payment: Payment) => {
-    return payment.order_status === "processing" || payment.order_status === "failed";
+    return (
+      payment.order_status === "processing" || payment.order_status === "failed"
+    );
   };
 
   const handleCopyToClipboard = async (text: string) => {
@@ -444,6 +390,11 @@ export default function PaymentsPage() {
   };
 
   const handleRetryCallback = async (payment: Payment) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to retry the callback for payment ${payment.cmpss_payment_id}?`
+    );
+    if (!confirmed) return;
+
     setRetryingCallback(payment.id);
     try {
       await api.post("/payments/trigger-callback", {
@@ -467,6 +418,11 @@ export default function PaymentsPage() {
   };
 
   const handleRetryVerification = async (payment: Payment) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to retry verification for payment ${payment.cmpss_payment_id}?`
+    );
+    if (!confirmed) return;
+
     setRetryingVerification(payment.id);
     try {
       await api.post(
@@ -498,6 +454,11 @@ export default function PaymentsPage() {
   };
 
   const handleExport = () => {
+    const confirmed = window.confirm(
+      `Are you sure you want to export ${payments.length} payment records?`
+    );
+    if (!confirmed) return;
+
     // Create CSV data
     const headers = [
       "Payment ID",
@@ -814,22 +775,21 @@ export default function PaymentsPage() {
                 <label className="text-sm font-medium text-muted-foreground">
                   Payment Method
                 </label>
-                <Select
+                <Combobox
+                  options={[
+                    { value: "all", label: "All Methods" },
+                    ...paymentMethods.map((method) => ({
+                      value: method.payment_method_id.toString(),
+                      label: method.name,
+                    })),
+                  ]}
                   value={paymentMethodIdFilter || "all"}
                   onValueChange={handlePaymentMethodIdFilter}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select payment method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Methods</SelectItem>
-                    {paymentMethods.map((method) => (
-                      <SelectItem key={method.id} value={method.payment_method_id.toString()}>
-                        {method.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select payment method"
+                  searchPlaceholder="Search payment methods..."
+                  emptyText="No payment methods found."
+                  all={false}
+                />
               </div>
 
               <div className="space-y-2">
@@ -845,7 +805,10 @@ export default function PaymentsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {currencies.map((currency) => (
-                      <SelectItem key={currency.id} value={currency.id.toString()}>
+                      <SelectItem
+                        key={currency.id}
+                        value={currency.id.toString()}
+                      >
                         {currency.name} ({currency.sign})
                       </SelectItem>
                     ))}
@@ -857,44 +820,42 @@ export default function PaymentsPage() {
                 <label className="text-sm font-medium text-muted-foreground">
                   Merchant
                 </label>
-                <Select
+                <Combobox
+                  options={[
+                    { value: "all", label: "All Merchants" },
+                    ...merchants.map((merchant) => ({
+                      value: merchant.id.toString(),
+                      label: merchant.name,
+                    })),
+                  ]}
                   value={merchantIdFilter || "all"}
                   onValueChange={handleMerchantIdFilter}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select merchant" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Merchants</SelectItem>
-                    {merchants.map((merchant) => (
-                      <SelectItem key={merchant.id} value={merchant.id.toString()}>
-                        {merchant.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select merchant"
+                  searchPlaceholder="Search merchants..."
+                  emptyText="No merchants found."
+                  all={false}
+                />
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">
                   Provider
                 </label>
-                <Select
+                <Combobox
+                  options={[
+                    { value: "all", label: "All Providers" },
+                    ...providers.map((provider) => ({
+                      value: provider.id.toString(),
+                      label: provider.name,
+                    })),
+                  ]}
                   value={providerIdFilter || "all"}
                   onValueChange={handleProviderIdFilter}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select provider" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Providers</SelectItem>
-                    {providers.map((provider) => (
-                      <SelectItem key={provider.id} value={provider.id.toString()}>
-                        {provider.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select provider"
+                  searchPlaceholder="Search providers..."
+                  emptyText="No providers found."
+                  all={false}
+                />
               </div>
             </div>
 
@@ -920,22 +881,36 @@ export default function PaymentsPage() {
                   )}
                   {paymentMethodIdFilter && (
                     <Badge variant="secondary" className="text-xs">
-                      Payment Method: {paymentMethods.find(m => m.payment_method_id.toString() === paymentMethodIdFilter)?.name || paymentMethodIdFilter}
+                      Payment Method:{" "}
+                      {paymentMethods.find(
+                        (m) =>
+                          m.payment_method_id.toString() ===
+                          paymentMethodIdFilter
+                      )?.name || paymentMethodIdFilter}
                     </Badge>
                   )}
                   {currencyIdFilter && (
                     <Badge variant="secondary" className="text-xs">
-                      Currency: {currencies.find(c => c.id.toString() === currencyIdFilter)?.name || currencyIdFilter}
+                      Currency:{" "}
+                      {currencies.find(
+                        (c) => c.id.toString() === currencyIdFilter
+                      )?.name || currencyIdFilter}
                     </Badge>
                   )}
                   {merchantIdFilter && (
                     <Badge variant="secondary" className="text-xs">
-                      Merchant: {merchants.find(m => m.id.toString() === merchantIdFilter)?.name || merchantIdFilter}
+                      Merchant:{" "}
+                      {merchants.find(
+                        (m) => m.id.toString() === merchantIdFilter
+                      )?.name || merchantIdFilter}
                     </Badge>
                   )}
                   {providerIdFilter && (
                     <Badge variant="secondary" className="text-xs">
-                      Provider: {providers.find(p => p.id.toString() === providerIdFilter)?.name || providerIdFilter}
+                      Provider:{" "}
+                      {providers.find(
+                        (p) => p.id.toString() === providerIdFilter
+                      )?.name || providerIdFilter}
                     </Badge>
                   )}
                   {merchantPaymentIdFilter && (
@@ -1140,7 +1115,7 @@ export default function PaymentsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">{payment.merchant_name}</div>                     
+                      <div className="text-sm">{payment.merchant_name}</div>
                     </TableCell>
                     <TableCell>
                       <div className="font-semibold">
@@ -1197,18 +1172,7 @@ export default function PaymentsPage() {
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
-                        
-                        {isEligibleForTppiUpdate(payment) && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openUpdateTppiDialog(payment)}
-                            title="Update TPPI"
-                          >
-                            <Settings className="w-4 h-4" />
-                          </Button>
-                        )}
-                        
+
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1222,7 +1186,7 @@ export default function PaymentsPage() {
                             <RotateCcw className="w-4 h-4" />
                           )}
                         </Button>
-                        
+
                         {isEligibleForRetryVerification(payment) && (
                           <Button
                             variant="ghost"
@@ -1338,69 +1302,6 @@ export default function PaymentsPage() {
           </div>
         </div>
       )}
-
-      {/* Update TPPI Dialog */}
-      <Dialog
-        open={updateTppiDialogOpen}
-        onOpenChange={setUpdateTppiDialogOpen}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Update Third Party Provider ID</DialogTitle>
-            <DialogDescription>
-              Update the third party provider ID for payment{" "}
-              <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
-                {selectedPayment?.cmpss_payment_id}
-              </span>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="tppi">Third Party Provider ID</Label>
-              <Input
-                id="tppi"
-                placeholder="Enter TPPI value..."
-                value={tppiValue}
-                onChange={(e) => setTppiValue(e.target.value)}
-                disabled={updatingTppi}
-              />
-            </div>
-            {selectedPayment && (
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p>
-                  <strong>Current TPPI:</strong>{" "}
-                  {selectedPayment.third_party_provider_id || "Not set"}
-                </p>
-                <p>
-                  <strong>Status:</strong> {selectedPayment.order_status}
-                </p>
-                <p>
-                  <strong>Amount:</strong>{" "}
-                  {formatCurrency(
-                    selectedPayment.order_amount,
-                    selectedPayment.currency_code
-                  )}
-                </p>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setUpdateTppiDialogOpen(false)}
-              disabled={updatingTppi}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleUpdateTppi}
-              disabled={updatingTppi || !tppiValue.trim()}
-            >
-              {updatingTppi ? "Updating..." : "Update TPPI"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </AuthenticatedLayout>
   );
 }
