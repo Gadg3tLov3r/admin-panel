@@ -327,7 +327,7 @@ export default function DisbursementsPage() {
 
   const handleAccountFilter = (value: string) => {
     setAccountFilter(value);
-    setCurrentPage(1);
+    // Don't reset page for account filter - it's client-side filtering
   };
 
   const handleStartDateFilter = (value: Date | undefined) => {
