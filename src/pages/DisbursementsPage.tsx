@@ -176,10 +176,28 @@ export default function DisbursementsPage() {
           cmpss_disbursement_id: cmpssDisbursementIdFilter,
         }),
         ...(startDateFilter && {
-          start_date: startDateFilter.toISOString().slice(0, 16),
+          start_date:
+            startDateFilter.getFullYear() +
+            "-" +
+            String(startDateFilter.getMonth() + 1).padStart(2, "0") +
+            "-" +
+            String(startDateFilter.getDate()).padStart(2, "0") +
+            "T" +
+            String(startDateFilter.getHours()).padStart(2, "0") +
+            ":" +
+            String(startDateFilter.getMinutes()).padStart(2, "0"),
         }),
         ...(endDateFilter && {
-          end_date: endDateFilter.toISOString().slice(0, 16),
+          end_date:
+            endDateFilter.getFullYear() +
+            "-" +
+            String(endDateFilter.getMonth() + 1).padStart(2, "0") +
+            "-" +
+            String(endDateFilter.getDate()).padStart(2, "0") +
+            "T" +
+            String(endDateFilter.getHours()).padStart(2, "0") +
+            ":" +
+            String(endDateFilter.getMinutes()).padStart(2, "0"),
         }),
       };
 
@@ -559,12 +577,14 @@ export default function DisbursementsPage() {
 
   // Format date
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "UTC",
     });
   };
 
