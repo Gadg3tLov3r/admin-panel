@@ -18,7 +18,6 @@ import { NavMain } from "@/components/nav-main";
 import { NavProjects } from "@/components/nav-projects";
 import { NavUser } from "@/components/nav-user";
 import { TeamSwitcher } from "@/components/team-switcher";
-import ServerTimeClock from "@/components/ServerTimeClock";
 import {
   Sidebar,
   SidebarContent,
@@ -120,9 +119,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarFooter>
-        <div className="px-2 py-1">
-          <ServerTimeClock variant="minimal" className="justify-center" />
-        </div>
         <NavUser user={userData} />
       </SidebarFooter>
       <SidebarRail />
