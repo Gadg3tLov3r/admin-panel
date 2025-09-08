@@ -58,6 +58,7 @@ export default function PaymentsPage() {
   const [perPage, setPerPage] = useState(20);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
+  // Current filter values (what user sees in UI)
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentMethodIdFilter, setPaymentMethodIdFilter] = useState("");
   const [currencyIdFilter, setCurrencyIdFilter] = useState("2");
@@ -76,6 +77,29 @@ export default function PaymentsPage() {
   const [endDateFilter, setEndDateFilter] = useState<Date | undefined>(
     undefined
   );
+
+  // Applied filter values (what actually filters the data)
+  const [appliedStatusFilter, setAppliedStatusFilter] = useState("");
+  const [appliedPaymentMethodIdFilter, setAppliedPaymentMethodIdFilter] =
+    useState("");
+  const [appliedCurrencyIdFilter, setAppliedCurrencyIdFilter] = useState("2");
+  const [appliedMerchantIdFilter, setAppliedMerchantIdFilter] = useState("");
+  const [appliedProviderIdFilter, setAppliedProviderIdFilter] = useState("");
+  const [appliedMerchantPaymentIdFilter, setAppliedMerchantPaymentIdFilter] =
+    useState("");
+  const [appliedCmpssPaymentIdFilter, setAppliedCmpssPaymentIdFilter] =
+    useState("");
+  const [appliedStartDateFilter, setAppliedStartDateFilter] = useState<
+    Date | undefined
+  >(() => {
+    // Set default start date to today at 00:00
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  });
+  const [appliedEndDateFilter, setAppliedEndDateFilter] = useState<
+    Date | undefined
+  >(undefined);
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [retryingCallback, setRetryingCallback] = useState<number | null>(null);
   const [retryingVerification, setRetryingVerification] = useState<
@@ -168,40 +192,48 @@ export default function PaymentsPage() {
       const params = {
         page: currentPage,
         per_page: perPage,
-        ...(statusFilter && { order_status: statusFilter }),
-        ...(paymentMethodIdFilter && {
-          payment_method_id: parseInt(paymentMethodIdFilter),
+        ...(appliedStatusFilter && { order_status: appliedStatusFilter }),
+        ...(appliedPaymentMethodIdFilter && {
+          payment_method_id: parseInt(appliedPaymentMethodIdFilter),
         }),
-        ...(currencyIdFilter && { currency_id: parseInt(currencyIdFilter) }),
-        ...(merchantIdFilter && { merchant_id: parseInt(merchantIdFilter) }),
-        ...(providerIdFilter && { provider_id: parseInt(providerIdFilter) }),
-        ...(merchantPaymentIdFilter && {
-          merchant_payment_id: merchantPaymentIdFilter,
+        ...(appliedCurrencyIdFilter && {
+          currency_id: parseInt(appliedCurrencyIdFilter),
         }),
-        ...(cmpssPaymentIdFilter && { cmpss_payment_id: cmpssPaymentIdFilter }),
-        ...(startDateFilter && {
+        ...(appliedMerchantIdFilter && {
+          merchant_id: parseInt(appliedMerchantIdFilter),
+        }),
+        ...(appliedProviderIdFilter && {
+          provider_id: parseInt(appliedProviderIdFilter),
+        }),
+        ...(appliedMerchantPaymentIdFilter && {
+          merchant_payment_id: appliedMerchantPaymentIdFilter,
+        }),
+        ...(appliedCmpssPaymentIdFilter && {
+          cmpss_payment_id: appliedCmpssPaymentIdFilter,
+        }),
+        ...(appliedStartDateFilter && {
           start_date:
-            startDateFilter.getFullYear() +
+            appliedStartDateFilter.getFullYear() +
             "-" +
-            String(startDateFilter.getMonth() + 1).padStart(2, "0") +
+            String(appliedStartDateFilter.getMonth() + 1).padStart(2, "0") +
             "-" +
-            String(startDateFilter.getDate()).padStart(2, "0") +
+            String(appliedStartDateFilter.getDate()).padStart(2, "0") +
             "T" +
-            String(startDateFilter.getHours()).padStart(2, "0") +
+            String(appliedStartDateFilter.getHours()).padStart(2, "0") +
             ":" +
-            String(startDateFilter.getMinutes()).padStart(2, "0"),
+            String(appliedStartDateFilter.getMinutes()).padStart(2, "0"),
         }),
-        ...(endDateFilter && {
+        ...(appliedEndDateFilter && {
           end_date:
-            endDateFilter.getFullYear() +
+            appliedEndDateFilter.getFullYear() +
             "-" +
-            String(endDateFilter.getMonth() + 1).padStart(2, "0") +
+            String(appliedEndDateFilter.getMonth() + 1).padStart(2, "0") +
             "-" +
-            String(endDateFilter.getDate()).padStart(2, "0") +
+            String(appliedEndDateFilter.getDate()).padStart(2, "0") +
             "T" +
-            String(endDateFilter.getHours()).padStart(2, "0") +
+            String(appliedEndDateFilter.getHours()).padStart(2, "0") +
             ":" +
-            String(endDateFilter.getMinutes()).padStart(2, "0"),
+            String(appliedEndDateFilter.getMinutes()).padStart(2, "0"),
         }),
       };
 
@@ -266,15 +298,15 @@ export default function PaymentsPage() {
   }, [
     currentPage,
     perPage,
-    statusFilter,
-    paymentMethodIdFilter,
-    currencyIdFilter,
-    merchantIdFilter,
-    providerIdFilter,
-    merchantPaymentIdFilter,
-    cmpssPaymentIdFilter,
-    startDateFilter,
-    endDateFilter,
+    appliedStatusFilter,
+    appliedPaymentMethodIdFilter,
+    appliedCurrencyIdFilter,
+    appliedMerchantIdFilter,
+    appliedProviderIdFilter,
+    appliedMerchantPaymentIdFilter,
+    appliedCmpssPaymentIdFilter,
+    appliedStartDateFilter,
+    appliedEndDateFilter,
   ]);
 
   useEffect(() => {
@@ -284,40 +316,33 @@ export default function PaymentsPage() {
     fetchProviders();
   }, [fetchCurrencies, fetchPaymentMethods, fetchMerchants, fetchProviders]);
 
-  // Handle filters
+  // Handle filters - only update current values, don't apply yet
   const handleStatusFilter = (value: string) => {
     setStatusFilter(value === "all" ? "" : value);
-    setCurrentPage(1);
   };
 
   const handlePaymentMethodIdFilter = (value: string) => {
     setPaymentMethodIdFilter(value === "all" ? "" : value);
-    setCurrentPage(1);
   };
 
   const handleCurrencyIdFilter = (value: string) => {
     setCurrencyIdFilter(value);
-    setCurrentPage(1);
   };
 
   const handleMerchantIdFilter = (value: string) => {
     setMerchantIdFilter(value === "all" ? "" : value);
-    setCurrentPage(1);
   };
 
   const handleProviderIdFilter = (value: string) => {
     setProviderIdFilter(value === "all" ? "" : value);
-    setCurrentPage(1);
   };
 
   const handleMerchantPaymentIdFilter = (value: string) => {
     setMerchantPaymentIdFilter(value);
-    setCurrentPage(1);
   };
 
   const handleCmpssPaymentIdFilter = (value: string) => {
     setCmpssPaymentIdFilter(value);
-    setCurrentPage(1);
   };
 
   const handleStartDateFilter = (value: Date | undefined) => {
@@ -329,7 +354,6 @@ export default function PaymentsPage() {
     } else {
       setStartDateFilter(undefined);
     }
-    setCurrentPage(1);
   };
 
   const handleEndDateFilter = (value: Date | undefined) => {
@@ -341,7 +365,6 @@ export default function PaymentsPage() {
     } else {
       setEndDateFilter(undefined);
     }
-    setCurrentPage(1);
   };
 
   // Check if filters are at default values
@@ -366,10 +389,41 @@ export default function PaymentsPage() {
     return false;
   };
 
+  // Apply current filter values to the applied filters
+  const applyFilters = () => {
+    console.log("Applying filters:", {
+      currentPage,
+      statusFilter,
+      paymentMethodIdFilter,
+      currencyIdFilter,
+      merchantIdFilter,
+      providerIdFilter,
+      merchantPaymentIdFilter,
+      cmpssPaymentIdFilter,
+      startDateFilter,
+      endDateFilter,
+    });
+
+    // Apply all filters
+    setAppliedStatusFilter(statusFilter);
+    setAppliedPaymentMethodIdFilter(paymentMethodIdFilter);
+    setAppliedCurrencyIdFilter(currencyIdFilter);
+    setAppliedMerchantIdFilter(merchantIdFilter);
+    setAppliedProviderIdFilter(providerIdFilter);
+    setAppliedMerchantPaymentIdFilter(merchantPaymentIdFilter);
+    setAppliedCmpssPaymentIdFilter(cmpssPaymentIdFilter);
+    setAppliedStartDateFilter(startDateFilter);
+    setAppliedEndDateFilter(endDateFilter);
+
+    // Reset page to 1 when applying filters
+    setCurrentPage(1);
+  };
+
   const clearFilters = () => {
+    // Clear current filter values
     setStatusFilter("");
     setPaymentMethodIdFilter("");
-    setCurrencyIdFilter(""); // Clear currency filter
+    setCurrencyIdFilter("2"); // Reset to default currency
     setMerchantIdFilter("");
     setProviderIdFilter("");
     setMerchantPaymentIdFilter("");
@@ -380,6 +434,18 @@ export default function PaymentsPage() {
     startOfDay.setHours(0, 0, 0, 0);
     setStartDateFilter(startOfDay);
     setEndDateFilter(undefined);
+
+    // Clear applied filter values
+    setAppliedStatusFilter("");
+    setAppliedPaymentMethodIdFilter("");
+    setAppliedCurrencyIdFilter("2");
+    setAppliedMerchantIdFilter("");
+    setAppliedProviderIdFilter("");
+    setAppliedMerchantPaymentIdFilter("");
+    setAppliedCmpssPaymentIdFilter("");
+    setAppliedStartDateFilter(startOfDay);
+    setAppliedEndDateFilter(undefined);
+
     setCurrentPage(1);
     setPermissionError(null); // Clear permission errors when filters are cleared
   };
@@ -724,90 +790,95 @@ export default function PaymentsPage() {
               >
                 <div className="flex items-center gap-2 flex-1">
                   {/* Active Filters in Header */}
-                  {(statusFilter ||
-                    paymentMethodIdFilter ||
-                    currencyIdFilter ||
-                    merchantIdFilter ||
-                    providerIdFilter ||
-                    merchantPaymentIdFilter ||
-                    cmpssPaymentIdFilter ||
-                    startDateFilter ||
-                    endDateFilter) && (
+                  {(appliedStatusFilter ||
+                    appliedPaymentMethodIdFilter ||
+                    appliedCurrencyIdFilter ||
+                    appliedMerchantIdFilter ||
+                    appliedProviderIdFilter ||
+                    appliedMerchantPaymentIdFilter ||
+                    appliedCmpssPaymentIdFilter ||
+                    appliedStartDateFilter ||
+                    appliedEndDateFilter) && (
                     <div className="flex items-center gap-2 flex-wrap ml-4">
-                      {statusFilter && (
+                      {appliedStatusFilter && (
                         <Badge variant="secondary" className="text-xs">
-                          Status: {statusFilter}
+                          Status: {appliedStatusFilter}
                         </Badge>
                       )}
-                      {paymentMethodIdFilter && (
+                      {appliedPaymentMethodIdFilter && (
                         <Badge variant="secondary" className="text-xs">
                           Method:{" "}
                           {paymentMethods.find(
                             (m) =>
                               m.payment_method_id.toString() ===
-                              paymentMethodIdFilter
-                          )?.name || paymentMethodIdFilter}
+                              appliedPaymentMethodIdFilter
+                          )?.name || appliedPaymentMethodIdFilter}
                         </Badge>
                       )}
-                      {currencyIdFilter && (
+                      {appliedCurrencyIdFilter && (
                         <Badge variant="secondary" className="text-xs">
                           Currency:{" "}
                           {currencies.find(
-                            (c) => c.id.toString() === currencyIdFilter
-                          )?.name || currencyIdFilter}
+                            (c) => c.id.toString() === appliedCurrencyIdFilter
+                          )?.name || appliedCurrencyIdFilter}
                         </Badge>
                       )}
-                      {merchantIdFilter && (
+                      {appliedMerchantIdFilter && (
                         <Badge variant="secondary" className="text-xs">
                           Merchant:{" "}
                           {merchants.find(
-                            (m) => m.id.toString() === merchantIdFilter
-                          )?.name || merchantIdFilter}
+                            (m) => m.id.toString() === appliedMerchantIdFilter
+                          )?.name || appliedMerchantIdFilter}
                         </Badge>
                       )}
-                      {providerIdFilter && (
+                      {appliedProviderIdFilter && (
                         <Badge variant="secondary" className="text-xs">
                           Provider:{" "}
                           {providers.find(
-                            (p) => p.id.toString() === providerIdFilter
-                          )?.name || providerIdFilter}
+                            (p) => p.id.toString() === appliedProviderIdFilter
+                          )?.name || appliedProviderIdFilter}
                         </Badge>
                       )}
-                      {merchantPaymentIdFilter && (
+                      {appliedMerchantPaymentIdFilter && (
                         <Badge variant="secondary" className="text-xs">
-                          Merchant ID: {merchantPaymentIdFilter}
+                          Merchant ID: {appliedMerchantPaymentIdFilter}
                         </Badge>
                       )}
-                      {cmpssPaymentIdFilter && (
+                      {appliedCmpssPaymentIdFilter && (
                         <Badge variant="secondary" className="text-xs">
-                          CMPSS ID: {cmpssPaymentIdFilter}
+                          CMPSS ID: {appliedCmpssPaymentIdFilter}
                         </Badge>
                       )}
-                      {startDateFilter && (
+                      {appliedStartDateFilter && (
                         <Badge
                           variant={
-                            isDefaultFilter("start_date", startDateFilter)
+                            isDefaultFilter(
+                              "start_date",
+                              appliedStartDateFilter
+                            )
                               ? "default"
                               : "secondary"
                           }
                           className="text-xs"
                         >
-                          From: {startDateFilter.toLocaleDateString()}
-                          {isDefaultFilter("start_date", startDateFilter) &&
-                            " (Default)"}
+                          From: {appliedStartDateFilter.toLocaleDateString()}
+                          {isDefaultFilter(
+                            "start_date",
+                            appliedStartDateFilter
+                          ) && " (Default)"}
                         </Badge>
                       )}
-                      {endDateFilter && (
+                      {appliedEndDateFilter && (
                         <Badge
                           variant={
-                            isDefaultFilter("end_date", endDateFilter)
+                            isDefaultFilter("end_date", appliedEndDateFilter)
                               ? "default"
                               : "secondary"
                           }
                           className="text-xs"
                         >
-                          To: {endDateFilter.toLocaleDateString()}
-                          {isDefaultFilter("end_date", endDateFilter) &&
+                          To: {appliedEndDateFilter.toLocaleDateString()}
+                          {isDefaultFilter("end_date", appliedEndDateFilter) &&
                             " (Default)"}
                         </Badge>
                       )}
@@ -986,6 +1057,13 @@ export default function PaymentsPage() {
                     />
                   </div>
                 </div>
+
+                {/* Apply Filter Button */}
+                <div className="flex justify-end pt-4 border-t">
+                  <Button onClick={applyFilters} className="w-full sm:w-auto">
+                    Apply Filters
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </CollapsibleContent>
@@ -1079,25 +1157,25 @@ export default function PaymentsPage() {
                     No payments found
                   </h3>
                   <p className="text-muted-foreground text-center mb-4">
-                    {statusFilter ||
-                    paymentMethodIdFilter ||
-                    currencyIdFilter ||
-                    merchantIdFilter ||
-                    merchantPaymentIdFilter ||
-                    cmpssPaymentIdFilter ||
-                    startDateFilter ||
-                    endDateFilter
+                    {appliedStatusFilter ||
+                    appliedPaymentMethodIdFilter ||
+                    appliedCurrencyIdFilter ||
+                    appliedMerchantIdFilter ||
+                    appliedMerchantPaymentIdFilter ||
+                    appliedCmpssPaymentIdFilter ||
+                    appliedStartDateFilter ||
+                    appliedEndDateFilter
                       ? "Try adjusting your filters to see more results."
                       : "There are no payments to display at the moment."}
                   </p>
-                  {(statusFilter ||
-                    paymentMethodIdFilter ||
-                    currencyIdFilter ||
-                    merchantIdFilter ||
-                    merchantPaymentIdFilter ||
-                    cmpssPaymentIdFilter ||
-                    startDateFilter ||
-                    endDateFilter) && (
+                  {(appliedStatusFilter ||
+                    appliedPaymentMethodIdFilter ||
+                    appliedCurrencyIdFilter ||
+                    appliedMerchantIdFilter ||
+                    appliedMerchantPaymentIdFilter ||
+                    appliedCmpssPaymentIdFilter ||
+                    appliedStartDateFilter ||
+                    appliedEndDateFilter) && (
                     <Button variant="outline" onClick={clearFilters}>
                       Clear all filters
                     </Button>
