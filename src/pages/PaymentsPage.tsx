@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/table";
 
 import {
-  Filter,
   Download,
   ChevronLeft,
   ChevronRight,
@@ -36,6 +35,8 @@ import {
   Eye,
   RotateCcw,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { toast } from "sonner";
@@ -43,6 +44,11 @@ import { Payment, PaymentsResponse } from "@/types/payment";
 import api from "@/lib/auth";
 import { DatePicker } from "@/components/DatePicker";
 import { Combobox } from "@/components/ui/combobox";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 export default function PaymentsPage() {
   const navigate = useNavigate();
@@ -95,6 +101,7 @@ export default function PaymentsPage() {
     total_failed: [0, "0"] as [number, string],
     total_pending: [0, "0"] as [number, string],
   });
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
   // Fetch currencies data
   const fetchCurrencies = useCallback(async () => {
@@ -708,274 +715,281 @@ export default function PaymentsPage() {
 
       {/* Search and Filters */}
       <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" />
-            Search & Filters
-          </CardTitle>
-          <CardDescription>
-            Filter and search through payment transactions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Payment IDs and Date Range Row */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  CMPSS Payment ID
-                </label>
-                <Input
-                  placeholder="Enter CMPSS payment ID..."
-                  className="w-full"
-                  value={cmpssPaymentIdFilter}
-                  onChange={(e) => handleCmpssPaymentIdFilter(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  Merchant Payment ID
-                </label>
-                <Input
-                  placeholder="Enter merchant payment ID..."
-                  className="w-full"
-                  value={merchantPaymentIdFilter}
-                  onChange={(e) =>
-                    handleMerchantPaymentIdFilter(e.target.value)
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  Start Date
-                </label>
-                <DatePicker
-                  selected={startDateFilter}
-                  onSelect={handleStartDateFilter}
-                  placeholder="Select start date"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  End Date
-                </label>
-                <DatePicker
-                  selected={endDateFilter}
-                  onSelect={handleEndDateFilter}
-                  placeholder="Select end date"
-                />
-              </div>
-            </div>
-
-            {/* Filters Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  Status
-                </label>
-                <Select
-                  value={statusFilter || "all"}
-                  onValueChange={handleStatusFilter}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="processing">Processing</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="failed">Failed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  Payment Method
-                </label>
-                <Combobox
-                  options={[
-                    { value: "all", label: "All Methods" },
-                    ...paymentMethods.map((method) => ({
-                      value: method.payment_method_id.toString(),
-                      label: method.name,
-                    })),
-                  ]}
-                  value={paymentMethodIdFilter || "all"}
-                  onValueChange={handlePaymentMethodIdFilter}
-                  placeholder="Select payment method"
-                  searchPlaceholder="Search payment methods..."
-                  emptyText="No payment methods found."
-                  all={false}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  Currency
-                </label>
-                <Select
-                  value={currencyIdFilter || "2"}
-                  onValueChange={handleCurrencyIdFilter}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencies.map((currency) => (
-                      <SelectItem
-                        key={currency.id}
-                        value={currency.id.toString()}
-                      >
-                        {currency.name} ({currency.sign})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  Merchant
-                </label>
-                <Combobox
-                  options={[
-                    { value: "all", label: "All Merchants" },
-                    ...merchants.map((merchant) => ({
-                      value: merchant.id.toString(),
-                      label: merchant.name,
-                    })),
-                  ]}
-                  value={merchantIdFilter || "all"}
-                  onValueChange={handleMerchantIdFilter}
-                  placeholder="Select merchant"
-                  searchPlaceholder="Search merchants..."
-                  emptyText="No merchants found."
-                  all={false}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  Provider
-                </label>
-                <Combobox
-                  options={[
-                    { value: "all", label: "All Providers" },
-                    ...providers.map((provider) => ({
-                      value: provider.id.toString(),
-                      label: provider.name,
-                    })),
-                  ]}
-                  value={providerIdFilter || "all"}
-                  onValueChange={handleProviderIdFilter}
-                  placeholder="Select provider"
-                  searchPlaceholder="Search providers..."
-                  emptyText="No providers found."
-                  all={false}
-                />
-              </div>
-            </div>
-
-            {/* Active Filters Display */}
-            {(statusFilter ||
-              paymentMethodIdFilter ||
-              currencyIdFilter ||
-              merchantIdFilter ||
-              providerIdFilter ||
-              merchantPaymentIdFilter ||
-              cmpssPaymentIdFilter ||
-              startDateFilter ||
-              endDateFilter) && (
-              <div className="flex items-center gap-2 pt-2 border-t">
-                <span className="text-sm font-medium text-muted-foreground">
-                  Active filters:
-                </span>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {statusFilter && (
-                    <Badge variant="secondary" className="text-xs">
-                      Status: {statusFilter}
-                    </Badge>
-                  )}
-                  {paymentMethodIdFilter && (
-                    <Badge variant="secondary" className="text-xs">
-                      Payment Method:{" "}
-                      {paymentMethods.find(
-                        (m) =>
-                          m.payment_method_id.toString() ===
-                          paymentMethodIdFilter
-                      )?.name || paymentMethodIdFilter}
-                    </Badge>
-                  )}
-                  {currencyIdFilter && (
-                    <Badge variant="secondary" className="text-xs">
-                      Currency:{" "}
-                      {currencies.find(
-                        (c) => c.id.toString() === currencyIdFilter
-                      )?.name || currencyIdFilter}
-                    </Badge>
-                  )}
-                  {merchantIdFilter && (
-                    <Badge variant="secondary" className="text-xs">
-                      Merchant:{" "}
-                      {merchants.find(
-                        (m) => m.id.toString() === merchantIdFilter
-                      )?.name || merchantIdFilter}
-                    </Badge>
-                  )}
-                  {providerIdFilter && (
-                    <Badge variant="secondary" className="text-xs">
-                      Provider:{" "}
-                      {providers.find(
-                        (p) => p.id.toString() === providerIdFilter
-                      )?.name || providerIdFilter}
-                    </Badge>
-                  )}
-                  {merchantPaymentIdFilter && (
-                    <Badge variant="secondary" className="text-xs">
-                      Merchant Payment ID: {merchantPaymentIdFilter}
-                    </Badge>
-                  )}
-                  {cmpssPaymentIdFilter && (
-                    <Badge variant="secondary" className="text-xs">
-                      CMPSS Payment ID: {cmpssPaymentIdFilter}
-                    </Badge>
-                  )}
-                  {startDateFilter && (
-                    <Badge
-                      variant={
-                        isDefaultFilter("start_date", startDateFilter)
-                          ? "default"
-                          : "secondary"
-                      }
-                      className="text-xs"
-                    >
-                      From: {startDateFilter.toLocaleDateString()}
-                      {isDefaultFilter("start_date", startDateFilter) &&
-                        " (Default)"}
-                    </Badge>
-                  )}
-                  {endDateFilter && (
-                    <Badge
-                      variant={
-                        isDefaultFilter("end_date", endDateFilter)
-                          ? "default"
-                          : "secondary"
-                      }
-                      className="text-xs"
-                    >
-                      To: {endDateFilter.toLocaleDateString()}
-                      {isDefaultFilter("end_date", endDateFilter) &&
-                        " (Default)"}
-                    </Badge>
+        <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
+          <CardHeader>
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className="flex items-center justify-between w-full p-0 h-auto hover:bg-transparent"
+              >
+                <div className="flex items-center gap-2 flex-1">
+                  {/* Active Filters in Header */}
+                  {(statusFilter ||
+                    paymentMethodIdFilter ||
+                    currencyIdFilter ||
+                    merchantIdFilter ||
+                    providerIdFilter ||
+                    merchantPaymentIdFilter ||
+                    cmpssPaymentIdFilter ||
+                    startDateFilter ||
+                    endDateFilter) && (
+                    <div className="flex items-center gap-2 flex-wrap ml-4">
+                      {statusFilter && (
+                        <Badge variant="secondary" className="text-xs">
+                          Status: {statusFilter}
+                        </Badge>
+                      )}
+                      {paymentMethodIdFilter && (
+                        <Badge variant="secondary" className="text-xs">
+                          Method:{" "}
+                          {paymentMethods.find(
+                            (m) =>
+                              m.payment_method_id.toString() ===
+                              paymentMethodIdFilter
+                          )?.name || paymentMethodIdFilter}
+                        </Badge>
+                      )}
+                      {currencyIdFilter && (
+                        <Badge variant="secondary" className="text-xs">
+                          Currency:{" "}
+                          {currencies.find(
+                            (c) => c.id.toString() === currencyIdFilter
+                          )?.name || currencyIdFilter}
+                        </Badge>
+                      )}
+                      {merchantIdFilter && (
+                        <Badge variant="secondary" className="text-xs">
+                          Merchant:{" "}
+                          {merchants.find(
+                            (m) => m.id.toString() === merchantIdFilter
+                          )?.name || merchantIdFilter}
+                        </Badge>
+                      )}
+                      {providerIdFilter && (
+                        <Badge variant="secondary" className="text-xs">
+                          Provider:{" "}
+                          {providers.find(
+                            (p) => p.id.toString() === providerIdFilter
+                          )?.name || providerIdFilter}
+                        </Badge>
+                      )}
+                      {merchantPaymentIdFilter && (
+                        <Badge variant="secondary" className="text-xs">
+                          Merchant ID: {merchantPaymentIdFilter}
+                        </Badge>
+                      )}
+                      {cmpssPaymentIdFilter && (
+                        <Badge variant="secondary" className="text-xs">
+                          CMPSS ID: {cmpssPaymentIdFilter}
+                        </Badge>
+                      )}
+                      {startDateFilter && (
+                        <Badge
+                          variant={
+                            isDefaultFilter("start_date", startDateFilter)
+                              ? "default"
+                              : "secondary"
+                          }
+                          className="text-xs"
+                        >
+                          From: {startDateFilter.toLocaleDateString()}
+                          {isDefaultFilter("start_date", startDateFilter) &&
+                            " (Default)"}
+                        </Badge>
+                      )}
+                      {endDateFilter && (
+                        <Badge
+                          variant={
+                            isDefaultFilter("end_date", endDateFilter)
+                              ? "default"
+                              : "secondary"
+                          }
+                          className="text-xs"
+                        >
+                          To: {endDateFilter.toLocaleDateString()}
+                          {isDefaultFilter("end_date", endDateFilter) &&
+                            " (Default)"}
+                        </Badge>
+                      )}
+                    </div>
                   )}
                 </div>
+                {isFiltersOpen ? (
+                  <ChevronUp className="w-5 h-5" />
+                ) : (
+                  <ChevronDown className="w-5 h-5" />
+                )}
+              </Button>
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Payment IDs and Date Range Row */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      CMPSS Payment ID
+                    </label>
+                    <Input
+                      placeholder="Enter CMPSS payment ID..."
+                      className="w-full"
+                      value={cmpssPaymentIdFilter}
+                      onChange={(e) =>
+                        handleCmpssPaymentIdFilter(e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Merchant Payment ID
+                    </label>
+                    <Input
+                      placeholder="Enter merchant payment ID..."
+                      className="w-full"
+                      value={merchantPaymentIdFilter}
+                      onChange={(e) =>
+                        handleMerchantPaymentIdFilter(e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Start Date
+                    </label>
+                    <DatePicker
+                      selected={startDateFilter}
+                      onSelect={handleStartDateFilter}
+                      placeholder="Select start date"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      End Date
+                    </label>
+                    <DatePicker
+                      selected={endDateFilter}
+                      onSelect={handleEndDateFilter}
+                      placeholder="Select end date"
+                    />
+                  </div>
+                </div>
+
+                {/* Filters Row */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Status
+                    </label>
+                    <Select
+                      value={statusFilter || "all"}
+                      onValueChange={handleStatusFilter}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="processing">Processing</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="failed">Failed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Payment Method
+                    </label>
+                    <Combobox
+                      options={[
+                        { value: "all", label: "All Methods" },
+                        ...paymentMethods.map((method) => ({
+                          value: method.payment_method_id.toString(),
+                          label: method.name,
+                        })),
+                      ]}
+                      value={paymentMethodIdFilter || "all"}
+                      onValueChange={handlePaymentMethodIdFilter}
+                      placeholder="Select payment method"
+                      searchPlaceholder="Search payment methods..."
+                      emptyText="No payment methods found."
+                      all={false}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Currency
+                    </label>
+                    <Select
+                      value={currencyIdFilter || "2"}
+                      onValueChange={handleCurrencyIdFilter}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {currencies.map((currency) => (
+                          <SelectItem
+                            key={currency.id}
+                            value={currency.id.toString()}
+                          >
+                            {currency.name} ({currency.sign})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Merchant
+                    </label>
+                    <Combobox
+                      options={[
+                        { value: "all", label: "All Merchants" },
+                        ...merchants.map((merchant) => ({
+                          value: merchant.id.toString(),
+                          label: merchant.name,
+                        })),
+                      ]}
+                      value={merchantIdFilter || "all"}
+                      onValueChange={handleMerchantIdFilter}
+                      placeholder="Select merchant"
+                      searchPlaceholder="Search merchants..."
+                      emptyText="No merchants found."
+                      all={false}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Provider
+                    </label>
+                    <Combobox
+                      options={[
+                        { value: "all", label: "All Providers" },
+                        ...providers.map((provider) => ({
+                          value: provider.id.toString(),
+                          label: provider.name,
+                        })),
+                      ]}
+                      value={providerIdFilter || "all"}
+                      onValueChange={handleProviderIdFilter}
+                      placeholder="Select provider"
+                      searchPlaceholder="Search providers..."
+                      emptyText="No providers found."
+                      all={false}
+                    />
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-        </CardContent>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
       {/* Payments Table */}
