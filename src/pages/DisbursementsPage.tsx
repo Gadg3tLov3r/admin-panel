@@ -59,6 +59,7 @@ export default function DisbursementsPage() {
     useState("");
   const [cmpssDisbursementIdFilter, setCmpssDisbursementIdFilter] =
     useState("");
+  const [accountFilter, setAccountFilter] = useState("");
   const [startDateFilter, setStartDateFilter] = useState<Date | undefined>(
     () => {
       // Set default start date to today at 00:00
@@ -299,6 +300,11 @@ export default function DisbursementsPage() {
     setCurrentPage(1);
   };
 
+  const handleAccountFilter = (value: string) => {
+    setAccountFilter(value);
+    setCurrentPage(1);
+  };
+
   const handleStartDateFilter = (value: Date | undefined) => {
     if (value) {
       // Set to start of day
@@ -353,6 +359,7 @@ export default function DisbursementsPage() {
     setProviderIdFilter("");
     setMerchantDisbursementIdFilter("");
     setCmpssDisbursementIdFilter("");
+    setAccountFilter("");
     // Reset to today's start date and clear end date
     const today = new Date();
     const startOfDay = new Date(today);
@@ -376,6 +383,26 @@ export default function DisbursementsPage() {
   // Check if disbursement is eligible for retry verification
   const isEligibleForRetryVerification = (disbursement: Disbursement) => {
     return disbursement.order_status === "processing";
+  };
+
+  // Client-side filtering function for account numbers
+  const filterDisbursementsByAccount = (disbursements: Disbursement[]) => {
+    if (!accountFilter.trim()) {
+      return disbursements;
+    }
+
+    const accountRegex = /^03\d{9}$/;
+    const searchTerm = accountFilter.trim();
+
+    // Only filter if the search term matches the regex pattern
+    if (!accountRegex.test(searchTerm)) {
+      return disbursements;
+    }
+
+    return disbursements.filter((disbursement) => {
+      const accountNumber = disbursement.account_details?.account_number || "";
+      return accountNumber === searchTerm;
+    });
   };
 
   const handleCopyToClipboard = async (text: string) => {
@@ -704,7 +731,7 @@ export default function DisbursementsPage() {
         <CardContent>
           <div className="space-y-4">
             {/* Disbursement IDs and Date Range Row */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">
                   CMPSS Disbursement ID
@@ -733,6 +760,17 @@ export default function DisbursementsPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">
+                  Account Number
+                </label>
+                <Input
+                  placeholder="Enter account number (03XXXXXXXXX)..."
+                  className="w-full"
+                  value={accountFilter}
+                  onChange={(e) => handleAccountFilter(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">
                   Start Date
                 </label>
                 <DatePicker
@@ -754,7 +792,7 @@ export default function DisbursementsPage() {
             </div>
 
             {/* Filters Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">
                   Status
@@ -873,6 +911,7 @@ export default function DisbursementsPage() {
               providerIdFilter ||
               merchantDisbursementIdFilter ||
               cmpssDisbursementIdFilter ||
+              accountFilter ||
               startDateFilter ||
               endDateFilter) && (
               <div className="flex items-center gap-2 pt-2 border-t">
@@ -929,6 +968,11 @@ export default function DisbursementsPage() {
                       CMPSS Disbursement ID: {cmpssDisbursementIdFilter}
                     </Badge>
                   )}
+                  {accountFilter && (
+                    <Badge variant="secondary" className="text-xs">
+                      Account: {accountFilter}
+                    </Badge>
+                  )}
                   {startDateFilter && (
                     <Badge
                       variant={
@@ -971,7 +1015,9 @@ export default function DisbursementsPage() {
             <div>
               <CardTitle>Disbursement Transactions</CardTitle>
               <CardDescription>
-                Showing {disbursements.length} of {total} disbursements
+                Showing {filterDisbursementsByAccount(disbursements).length} of{" "}
+                {total} disbursements
+                {accountFilter && ` (filtered by account)`}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -1005,7 +1051,7 @@ export default function DisbursementsPage() {
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
-          ) : disbursements.length === 0 ? (
+          ) : filterDisbursementsByAccount(disbursements).length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               {permissionError ? (
                 <>
@@ -1038,6 +1084,7 @@ export default function DisbursementsPage() {
                     merchantIdFilter ||
                     merchantDisbursementIdFilter ||
                     cmpssDisbursementIdFilter ||
+                    accountFilter ||
                     startDateFilter ||
                     endDateFilter
                       ? "Try adjusting your filters to see more results."
@@ -1049,6 +1096,7 @@ export default function DisbursementsPage() {
                     merchantIdFilter ||
                     merchantDisbursementIdFilter ||
                     cmpssDisbursementIdFilter ||
+                    accountFilter ||
                     startDateFilter ||
                     endDateFilter) && (
                     <Button variant="outline" onClick={clearFilters}>
@@ -1076,140 +1124,145 @@ export default function DisbursementsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {disbursements.map((disbursement) => (
-                  <TableRow key={disbursement.id}>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <button
-                          onClick={() =>
-                            handleCopyToClipboard(
-                              disbursement.cmpss_disbursement_id
-                            )
-                          }
-                          className="flex items-center hover:bg-gray-100 px-1 py-0.5 rounded transition-colors w-full text-left"
-                        >
-                          <div className="font-medium text-sm">
-                            {disbursement.cmpss_disbursement_id}
-                          </div>
-                        </button>
-                        <button
-                          onClick={() =>
-                            handleCopyToClipboard(
-                              disbursement.merchant_disbursement_id
-                            )
-                          }
-                          className="flex items-center hover:bg-gray-100 px-1 py-0.5 rounded transition-colors w-full text-left"
-                        >
-                          <div className="text-xs text-muted-foreground">
-                            {disbursement.merchant_disbursement_id}
-                          </div>
-                        </button>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {disbursement.merchant_name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        ID: {disbursement.merchant_id}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-semibold">
-                        {formatCurrency(
-                          disbursement.order_amount,
-                          disbursement.currency_code
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-semibold text-purple-600">
-                        {formatCurrency(
-                          disbursement.merchant_fee || "0",
-                          disbursement.currency_code
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-semibold text-blue-600">
-                        {formatCurrency(
-                          disbursement.provider_commission || "0",
-                          disbursement.currency_code
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(disbursement.order_status)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm font-medium">
-                        {disbursement.provider_name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Retries: {disbursement.retry_verify_count}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {disbursement.payment_method_name}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm font-medium">
-                        {disbursement.account_details?.account_number || "N/A"}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {formatDate(disbursement.created_at)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewDetails(disbursement)}
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRetryCallback(disbursement)}
-                          disabled={retryingCallback === disbursement.id}
-                          title="Retry Callback"
-                        >
-                          {retryingCallback === disbursement.id ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <RotateCcw className="w-4 h-4" />
+                {filterDisbursementsByAccount(disbursements).map(
+                  (disbursement) => (
+                    <TableRow key={disbursement.id}>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <button
+                            onClick={() =>
+                              handleCopyToClipboard(
+                                disbursement.cmpss_disbursement_id
+                              )
+                            }
+                            className="flex items-center hover:bg-gray-100 px-1 py-0.5 rounded transition-colors w-full text-left"
+                          >
+                            <div className="font-medium text-sm">
+                              {disbursement.cmpss_disbursement_id}
+                            </div>
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleCopyToClipboard(
+                                disbursement.merchant_disbursement_id
+                              )
+                            }
+                            className="flex items-center hover:bg-gray-100 px-1 py-0.5 rounded transition-colors w-full text-left"
+                          >
+                            <div className="text-xs text-muted-foreground">
+                              {disbursement.merchant_disbursement_id}
+                            </div>
+                          </button>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {disbursement.merchant_name}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          ID: {disbursement.merchant_id}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-semibold">
+                          {formatCurrency(
+                            disbursement.order_amount,
+                            disbursement.currency_code
                           )}
-                        </Button>
-
-                        {isEligibleForRetryVerification(disbursement) && (
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-semibold text-purple-600">
+                          {formatCurrency(
+                            disbursement.merchant_fee || "0",
+                            disbursement.currency_code
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-semibold text-blue-600">
+                          {formatCurrency(
+                            disbursement.provider_commission || "0",
+                            disbursement.currency_code
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(disbursement.order_status)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm font-medium">
+                          {disbursement.provider_name}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Retries: {disbursement.retry_verify_count}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {disbursement.payment_method_name}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm font-medium">
+                          {disbursement.account_details?.account_number ||
+                            "N/A"}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {formatDate(disbursement.created_at)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() =>
-                              handleRetryVerification(disbursement)
-                            }
-                            disabled={retryingVerification === disbursement.id}
-                            title="Retry Verification"
+                            onClick={() => handleViewDetails(disbursement)}
+                            title="View Details"
                           >
-                            {retryingVerification === disbursement.id ? (
+                            <Eye className="w-4 h-4" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRetryCallback(disbursement)}
+                            disabled={retryingCallback === disbursement.id}
+                            title="Retry Callback"
+                          >
+                            {retryingCallback === disbursement.id ? (
                               <RefreshCw className="w-4 h-4 animate-spin" />
                             ) : (
-                              <CheckCircle className="w-4 h-4" />
+                              <RotateCcw className="w-4 h-4" />
                             )}
                           </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+
+                          {isEligibleForRetryVerification(disbursement) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                handleRetryVerification(disbursement)
+                              }
+                              disabled={
+                                retryingVerification === disbursement.id
+                              }
+                              title="Retry Verification"
+                            >
+                              {retryingVerification === disbursement.id ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                )}
               </TableBody>
             </Table>
           )}
