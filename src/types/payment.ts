@@ -35,6 +35,7 @@ export interface PaymentsResponse {
   per_page: number;
   total_pages: number;
   total_amount: string;
+  total_provider_fee: string;
   total_merchant_fee: string;
   total_success: [number, string];
   total_failed: [number, string];

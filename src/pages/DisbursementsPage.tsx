@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Card,
@@ -28,17 +28,13 @@ import {
 import {
   Filter,
   Download,
-  MoreHorizontal,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  Eye,
+  RotateCcw,
+  CheckCircle,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { toast } from "sonner";
 import { Disbursement, DisbursementsResponse } from "@/types/disbursement";
@@ -57,6 +53,7 @@ export default function DisbursementsPage() {
   const [paymentMethodIdFilter, setPaymentMethodIdFilter] = useState("");
   const [currencyIdFilter, setCurrencyIdFilter] = useState("2");
   const [merchantIdFilter, setMerchantIdFilter] = useState("");
+  const [providerIdFilter, setProviderIdFilter] = useState("");
   const [merchantDisbursementIdFilter, setMerchantDisbursementIdFilter] =
     useState("");
   const [cmpssDisbursementIdFilter, setCmpssDisbursementIdFilter] =
@@ -77,13 +74,71 @@ export default function DisbursementsPage() {
   const [retryingVerification, setRetryingVerification] = useState<
     number | null
   >(null);
+  const [currencies, setCurrencies] = useState<Array<{id: number, name: string, sign: string, country: string}>>([]);
+  const [paymentMethods, setPaymentMethods] = useState<Array<{id: number, name: string, payment_method_id: number}>>([]);
+  const [merchants, setMerchants] = useState<Array<{id: number, name: string}>>([]);
+  const [providers, setProviders] = useState<Array<{id: number, name: string}>>([]);
   const [stats, setStats] = useState({
     total_amount: "0",
+    total_provider_fee: "0",
     total_merchant_fee: "0",
     total_success: [0, "0"] as [number, string],
     total_failed: [0, "0"] as [number, string],
     total_pending: [0, "0"] as [number, string],
   });
+
+  // Fetch currencies data
+  const fetchCurrencies = useCallback(async () => {
+    try {
+      const response = await api.get("/currencies");
+      setCurrencies(response.data.currencies || []);
+    } catch (error) {
+      console.error("Error fetching currencies:", error);
+    }
+  }, []);
+
+  // Fetch payment methods data
+  const fetchPaymentMethods = useCallback(async () => {
+    try {
+      const response = await api.get("/methods");
+      // Extract payment methods from merchant_methods and get unique payment methods
+      const merchantMethods = response.data.merchant_methods || [];
+      const uniqueMethods = merchantMethods.reduce((acc: any[], method: any) => {
+        const existingMethod = acc.find(m => m.payment_method_id === method.payment_method_id);
+        if (!existingMethod) {
+          acc.push({
+            id: method.payment_method_id,
+            name: method.payment_method.name,
+            payment_method_id: method.payment_method_id
+          });
+        }
+        return acc;
+      }, []);
+      setPaymentMethods(uniqueMethods);
+    } catch (error) {
+      console.error("Error fetching payment methods:", error);
+    }
+  }, []);
+
+  // Fetch merchants data
+  const fetchMerchants = useCallback(async () => {
+    try {
+      const response = await api.get("/merchants");
+      setMerchants(response.data.merchants || response.data || []);
+    } catch (error) {
+      console.error("Error fetching merchants:", error);
+    }
+  }, []);
+
+  // Fetch providers data
+  const fetchProviders = useCallback(async () => {
+    try {
+      const response = await api.get("/providers");
+      setProviders(response.data.providers || response.data || []);
+    } catch (error) {
+      console.error("Error fetching providers:", error);
+    }
+  }, []);
 
   // Fetch disbursements data
   const fetchDisbursements = async () => {
@@ -98,6 +153,7 @@ export default function DisbursementsPage() {
         }),
         ...(currencyIdFilter && { currency_id: parseInt(currencyIdFilter) }),
         ...(merchantIdFilter && { merchant_id: parseInt(merchantIdFilter) }),
+        ...(providerIdFilter && { provider_id: parseInt(providerIdFilter) }),
         ...(merchantDisbursementIdFilter && {
           merchant_disbursement_id: merchantDisbursementIdFilter,
         }),
@@ -123,6 +179,7 @@ export default function DisbursementsPage() {
       // Extract stats from the API response
       setStats({
         total_amount: data.total_amount || "0",
+        total_provider_fee: data.total_provider_fee || "0",
         total_merchant_fee: data.total_merchant_fee || "0",
         total_success: data.total_success || [0, "0"],
         total_failed: data.total_failed || [0, "0"],
@@ -178,11 +235,19 @@ export default function DisbursementsPage() {
     paymentMethodIdFilter,
     currencyIdFilter,
     merchantIdFilter,
+    providerIdFilter,
     merchantDisbursementIdFilter,
     cmpssDisbursementIdFilter,
     startDateFilter,
     endDateFilter,
   ]);
+
+  useEffect(() => {
+    fetchCurrencies();
+    fetchPaymentMethods();
+    fetchMerchants();
+    fetchProviders();
+  }, [fetchCurrencies, fetchPaymentMethods, fetchMerchants, fetchProviders]);
 
   // Handle filters
   const handleStatusFilter = (value: string) => {
@@ -191,7 +256,7 @@ export default function DisbursementsPage() {
   };
 
   const handlePaymentMethodIdFilter = (value: string) => {
-    setPaymentMethodIdFilter(value);
+    setPaymentMethodIdFilter(value === "all" ? "" : value);
     setCurrentPage(1);
   };
 
@@ -201,7 +266,12 @@ export default function DisbursementsPage() {
   };
 
   const handleMerchantIdFilter = (value: string) => {
-    setMerchantIdFilter(value);
+    setMerchantIdFilter(value === "all" ? "" : value);
+    setCurrentPage(1);
+  };
+
+  const handleProviderIdFilter = (value: string) => {
+    setProviderIdFilter(value === "all" ? "" : value);
     setCurrentPage(1);
   };
 
@@ -244,7 +314,6 @@ export default function DisbursementsPage() {
     filterName: string,
     value: string | Date | undefined
   ) => {
-    if (filterName === "currency_id" && value === "2") return true;
     if (filterName === "start_date" || filterName === "end_date") {
       const today = new Date();
       const startOfDay = new Date(today);
@@ -265,8 +334,9 @@ export default function DisbursementsPage() {
   const clearFilters = () => {
     setStatusFilter("");
     setPaymentMethodIdFilter("");
-    setCurrencyIdFilter("2"); // Reset to default currency ID
+    setCurrencyIdFilter(""); // Clear currency filter
     setMerchantIdFilter("");
+    setProviderIdFilter("");
     setMerchantDisbursementIdFilter("");
     setCmpssDisbursementIdFilter("");
     // Reset to today's start date and clear end date
@@ -443,7 +513,8 @@ export default function DisbursementsPage() {
       subtitle="Manage and monitor disbursement transactions"
     >
       {/* Summary Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+        {/* Total Amount */}
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -464,26 +535,8 @@ export default function DisbursementsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Total Fees
-                </p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {formatCurrency(
-                    stats.total_merchant_fee,
-                    disbursements[0]?.currency_code || "USD"
-                  )}
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                <span className="text-purple-600 font-semibold">💸</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+
+        {/* Successful */}
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -507,6 +560,52 @@ export default function DisbursementsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Total Provider Fees */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Total Provider Fees
+                </p>
+                <p className="text-2xl font-bold text-orange-600">
+                  {formatCurrency(
+                    stats.total_provider_fee,
+                    disbursements[0]?.currency_code || "USD"
+                  )}
+                </p>
+              </div>
+              <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                <span className="text-orange-600 font-semibold">🏦</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Total Merchant Fees */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Total Merchant Fees
+                </p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {formatCurrency(
+                    stats.total_merchant_fee,
+                    disbursements[0]?.currency_code || "USD"
+                  )}
+                </p>
+              </div>
+              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                <span className="text-purple-600 font-semibold">💸</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Failed */}
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -530,6 +629,8 @@ export default function DisbursementsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Pending */}
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -644,41 +745,89 @@ export default function DisbursementsPage() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">
-                  Payment Method ID
+                  Payment Method
                 </label>
-                <Input
-                  type="number"
-                  placeholder="Enter payment method ID"
-                  className="w-full"
-                  value={paymentMethodIdFilter}
-                  onChange={(e) => handlePaymentMethodIdFilter(e.target.value)}
-                />
+                <Select
+                  value={paymentMethodIdFilter || "all"}
+                  onValueChange={handlePaymentMethodIdFilter}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select payment method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Methods</SelectItem>
+                    {paymentMethods.map((method) => (
+                      <SelectItem key={method.id} value={method.payment_method_id.toString()}>
+                        {method.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">
-                  Currency ID
+                  Currency
                 </label>
-                <Input
-                  type="number"
-                  placeholder="Enter currency ID"
-                  className="w-full"
-                  value={currencyIdFilter}
-                  onChange={(e) => handleCurrencyIdFilter(e.target.value)}
-                />
+                <Select
+                  value={currencyIdFilter || "2"}
+                  onValueChange={handleCurrencyIdFilter}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencies.map((currency) => (
+                      <SelectItem key={currency.id} value={currency.id.toString()}>
+                        {currency.name} ({currency.sign})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">
-                  Merchant ID
+                  Merchant
                 </label>
-                <Input
-                  type="number"
-                  placeholder="Enter merchant ID"
-                  className="w-full"
-                  value={merchantIdFilter}
-                  onChange={(e) => handleMerchantIdFilter(e.target.value)}
-                />
+                <Select
+                  value={merchantIdFilter || "all"}
+                  onValueChange={handleMerchantIdFilter}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select merchant" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Merchants</SelectItem>
+                    {merchants.map((merchant) => (
+                      <SelectItem key={merchant.id} value={merchant.id.toString()}>
+                        {merchant.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Provider
+                </label>
+                <Select
+                  value={providerIdFilter || "all"}
+                  onValueChange={handleProviderIdFilter}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Providers</SelectItem>
+                    {providers.map((provider) => (
+                      <SelectItem key={provider.id} value={provider.id.toString()}>
+                        {provider.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -687,6 +836,7 @@ export default function DisbursementsPage() {
               paymentMethodIdFilter ||
               currencyIdFilter ||
               merchantIdFilter ||
+              providerIdFilter ||
               merchantDisbursementIdFilter ||
               cmpssDisbursementIdFilter ||
               startDateFilter ||
@@ -703,26 +853,22 @@ export default function DisbursementsPage() {
                   )}
                   {paymentMethodIdFilter && (
                     <Badge variant="secondary" className="text-xs">
-                      Payment Method ID: {paymentMethodIdFilter}
+                      Payment Method: {paymentMethods.find(m => m.payment_method_id.toString() === paymentMethodIdFilter)?.name || paymentMethodIdFilter}
                     </Badge>
                   )}
                   {currencyIdFilter && (
-                    <Badge
-                      variant={
-                        isDefaultFilter("currency_id", currencyIdFilter)
-                          ? "default"
-                          : "secondary"
-                      }
-                      className="text-xs"
-                    >
-                      Currency ID: {currencyIdFilter}
-                      {isDefaultFilter("currency_id", currencyIdFilter) &&
-                        " (Default)"}
+                    <Badge variant="secondary" className="text-xs">
+                      Currency: {currencies.find(c => c.id.toString() === currencyIdFilter)?.name || currencyIdFilter}
                     </Badge>
                   )}
                   {merchantIdFilter && (
                     <Badge variant="secondary" className="text-xs">
-                      Merchant ID: {merchantIdFilter}
+                      Merchant: {merchants.find(m => m.id.toString() === merchantIdFilter)?.name || merchantIdFilter}
+                    </Badge>
+                  )}
+                  {providerIdFilter && (
+                    <Badge variant="secondary" className="text-xs">
+                      Provider: {providers.find(p => p.id.toString() === providerIdFilter)?.name || providerIdFilter}
                     </Badge>
                   )}
                   {merchantDisbursementIdFilter && (
@@ -872,6 +1018,7 @@ export default function DisbursementsPage() {
                   <TableHead>Merchant</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Merchant Fee</TableHead>
+                  <TableHead>Provider Commission</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Provider</TableHead>
                   <TableHead>Method</TableHead>
@@ -936,6 +1083,14 @@ export default function DisbursementsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
+                      <div className="font-semibold text-blue-600">
+                        {formatCurrency(
+                          disbursement.provider_commission || "0",
+                          disbursement.currency_code
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       {getStatusBadge(disbursement.order_status)}
                     </TableCell>
                     <TableCell>
@@ -962,56 +1117,45 @@ export default function DisbursementsPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => handleViewDetails(disbursement)}
-                            >
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleRetryCallback(disbursement)}
-                              disabled={retryingCallback === disbursement.id}
-                            >
-                              {retryingCallback === disbursement.id ? (
-                                <>
-                                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                  Retrying...
-                                </>
-                              ) : (
-                                "Retry Callback"
-                              )}
-                            </DropdownMenuItem>
-                            {isEligibleForRetryVerification(disbursement) && (
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleRetryVerification(disbursement)
-                                }
-                                disabled={
-                                  retryingVerification === disbursement.id
-                                }
-                              >
-                                {retryingVerification === disbursement.id ? (
-                                  <>
-                                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                    Retrying...
-                                  </>
-                                ) : (
-                                  "Retry Verification"
-                                )}
-                              </DropdownMenuItem>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewDetails(disbursement)}
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRetryCallback(disbursement)}
+                          disabled={retryingCallback === disbursement.id}
+                          title="Retry Callback"
+                        >
+                          {retryingCallback === disbursement.id ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <RotateCcw className="w-4 h-4" />
+                          )}
+                        </Button>
+                        
+                        {isEligibleForRetryVerification(disbursement) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRetryVerification(disbursement)}
+                            disabled={retryingVerification === disbursement.id}
+                            title="Retry Verification"
+                          >
+                            {retryingVerification === disbursement.id ? (
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4" />
                             )}
-                            <DropdownMenuItem disabled>
-                              Download Receipt
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
