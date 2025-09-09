@@ -33,8 +33,6 @@ import {
   ChevronRight,
   RefreshCw,
   Eye,
-  RotateCcw,
-  CheckCircle,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -101,10 +99,6 @@ export default function PaymentsPage() {
     Date | undefined
   >(undefined);
   const [permissionError, setPermissionError] = useState<string | null>(null);
-  const [retryingCallback, setRetryingCallback] = useState<number | null>(null);
-  const [retryingVerification, setRetryingVerification] = useState<
-    number | null
-  >(null);
   const [currencies, setCurrencies] = useState<
     Array<{ id: number; name: string; sign: string; country: string }>
   >([]);
@@ -460,12 +454,6 @@ export default function PaymentsPage() {
     toast.success("Payments refreshed");
   };
 
-  // Check if payment is eligible for retry verification
-  const isEligibleForRetryVerification = (payment: Payment) => {
-    return (
-      payment.order_status === "processing" || payment.order_status === "failed"
-    );
-  };
 
   const handleCopyToClipboard = async (text: string) => {
     try {
@@ -477,72 +465,9 @@ export default function PaymentsPage() {
   };
 
   const handleViewDetails = (payment: Payment) => {
-    navigate(`/payments/${payment.id}`);
+    window.open(`/payments/${payment.id}`, '_blank');
   };
 
-  const handleRetryCallback = async (payment: Payment) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to retry the callback for payment ${payment.cmpss_payment_id}?`
-    );
-    if (!confirmed) return;
-
-    setRetryingCallback(payment.id);
-    try {
-      await api.post("/payments/trigger-callback", {
-        cmpss_payment_id: payment.cmpss_payment_id,
-      });
-      toast.success("Callback triggered successfully");
-    } catch (error: any) {
-      console.error("Error triggering callback:", error);
-      if (error.response?.status === 403) {
-        toast.error(
-          "Access denied: You don't have permission to trigger callbacks"
-        );
-      } else if (error.response?.data?.detail) {
-        toast.error(`Error: ${error.response.data.detail}`);
-      } else {
-        toast.error("Failed to trigger callback. Please try again.");
-      }
-    } finally {
-      setRetryingCallback(null);
-    }
-  };
-
-  const handleRetryVerification = async (payment: Payment) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to retry verification for payment ${payment.cmpss_payment_id}?`
-    );
-    if (!confirmed) return;
-
-    setRetryingVerification(payment.id);
-    try {
-      await api.post(
-        "/payments/query-timeout-order",
-        {
-          cmpss_payment_id: payment.cmpss_payment_id,
-        },
-        {
-          headers: {
-            "x-do-secret": "df0f5bfc-a858-4b2d-9041-af2651c0cfe9",
-          },
-        }
-      );
-      toast.success("Verification retry triggered successfully");
-    } catch (error: any) {
-      console.error("Error triggering verification retry:", error);
-      if (error.response?.status === 403) {
-        toast.error(
-          "Access denied: You don't have permission to retry verification"
-        );
-      } else if (error.response?.data?.detail) {
-        toast.error(`Error: ${error.response.data.detail}`);
-      } else {
-        toast.error("Failed to trigger verification retry. Please try again.");
-      }
-    } finally {
-      setRetryingVerification(null);
-    }
-  };
 
   const handleExport = () => {
     const confirmed = window.confirm(
@@ -1284,36 +1209,6 @@ export default function PaymentsPage() {
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRetryCallback(payment)}
-                          disabled={retryingCallback === payment.id}
-                          title="Retry Callback"
-                        >
-                          {retryingCallback === payment.id ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <RotateCcw className="w-4 h-4" />
-                          )}
-                        </Button>
-
-                        {isEligibleForRetryVerification(payment) && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRetryVerification(payment)}
-                            disabled={retryingVerification === payment.id}
-                            title="Retry Verification"
-                          >
-                            {retryingVerification === payment.id ? (
-                              <RefreshCw className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <CheckCircle className="w-4 h-4" />
-                            )}
-                          </Button>
-                        )}
                       </div>
                     </TableCell>
                   </TableRow>

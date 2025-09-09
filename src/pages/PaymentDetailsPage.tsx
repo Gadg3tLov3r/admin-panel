@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Copy, Download, Settings } from "lucide-react";
+import { ArrowLeft, Copy, Download, Settings, RotateCcw, CheckCircle, RefreshCw } from "lucide-react";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { toast } from "sonner";
 import { Payment } from "@/types/payment";
@@ -37,6 +37,10 @@ export default function PaymentDetailsPage() {
   const [updateTppiDialogOpen, setUpdateTppiDialogOpen] = useState(false);
   const [tppiValue, setTppiValue] = useState("");
   const [updatingTppi, setUpdatingTppi] = useState(false);
+
+  // Retry states
+  const [retryingCallback, setRetryingCallback] = useState(false);
+  const [retryingVerification, setRetryingVerification] = useState(false);
 
   useEffect(() => {
     if (paymentId && !isNaN(Number(paymentId))) {
@@ -159,6 +163,87 @@ export default function PaymentDetailsPage() {
     );
   };
 
+  // Check if payment is eligible for retry verification
+  const isEligibleForRetryVerification = (payment: Payment) => {
+    return (
+      payment.order_status === "processing" || payment.order_status === "failed"
+    );
+  };
+
+  // Handle retry callback
+  const handleRetryCallback = async () => {
+    if (!payment) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to retry the callback for payment ${payment.cmpss_payment_id}?`
+    );
+    if (!confirmed) return;
+
+    setRetryingCallback(true);
+    try {
+      await api.post("/payments/trigger-callback", {
+        cmpss_payment_id: payment.cmpss_payment_id,
+      });
+      toast.success("Callback triggered successfully");
+      // Refresh the payment details
+      fetchPaymentDetails();
+    } catch (error: any) {
+      console.error("Error triggering callback:", error);
+      if (error.response?.status === 403) {
+        toast.error(
+          "Access denied: You don't have permission to trigger callbacks"
+        );
+      } else if (error.response?.data?.detail) {
+        toast.error(`Error: ${error.response.data.detail}`);
+      } else {
+        toast.error("Failed to trigger callback. Please try again.");
+      }
+    } finally {
+      setRetryingCallback(false);
+    }
+  };
+
+  // Handle retry verification
+  const handleRetryVerification = async () => {
+    if (!payment) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to retry verification for payment ${payment.cmpss_payment_id}?`
+    );
+    if (!confirmed) return;
+
+    setRetryingVerification(true);
+    try {
+      await api.post(
+        "/payments/query-timeout-order",
+        {
+          cmpss_payment_id: payment.cmpss_payment_id,
+        },
+        {
+          headers: {
+            "x-do-secret": "df0f5bfc-a858-4b2d-9041-af2651c0cfe9",
+          },
+        }
+      );
+      toast.success("Verification retry triggered successfully");
+      // Refresh the payment details
+      fetchPaymentDetails();
+    } catch (error: any) {
+      console.error("Error triggering verification retry:", error);
+      if (error.response?.status === 403) {
+        toast.error(
+          "Access denied: You don't have permission to retry verification"
+        );
+      } else if (error.response?.data?.detail) {
+        toast.error(`Error: ${error.response.data.detail}`);
+      } else {
+        toast.error("Failed to trigger verification retry. Please try again.");
+      }
+    } finally {
+      setRetryingVerification(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusColors = {
       pending: "bg-yellow-100 text-yellow-800",
@@ -253,6 +338,36 @@ export default function PaymentDetailsPage() {
             Back to Payments
           </Button>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleRetryCallback}
+              disabled={retryingCallback}
+              className="flex items-center gap-2"
+            >
+              {retryingCallback ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <RotateCcw className="w-4 h-4" />
+              )}
+              {retryingCallback ? "Retrying..." : "Retry Callback"}
+            </Button>
+
+            {isEligibleForRetryVerification(payment) && (
+              <Button
+                variant="outline"
+                onClick={handleRetryVerification}
+                disabled={retryingVerification}
+                className="flex items-center gap-2"
+              >
+                {retryingVerification ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4" />
+                )}
+                {retryingVerification ? "Retrying..." : "Retry Verification"}
+              </Button>
+            )}
+
             {isEligibleForTppiUpdate(payment) && (
               <Button
                 variant="outline"

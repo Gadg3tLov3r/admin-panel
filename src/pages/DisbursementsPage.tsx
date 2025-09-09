@@ -31,8 +31,6 @@ import {
   ChevronRight,
   RefreshCw,
   Eye,
-  RotateCcw,
-  CheckCircle,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -107,10 +105,6 @@ export default function DisbursementsPage() {
     Date | undefined
   >(undefined);
   const [permissionError, setPermissionError] = useState<string | null>(null);
-  const [retryingCallback, setRetryingCallback] = useState<number | null>(null);
-  const [retryingVerification, setRetryingVerification] = useState<
-    number | null
-  >(null);
   const [currencies, setCurrencies] = useState<
     Array<{ id: number; name: string; sign: string; country: string }>
   >([]);
@@ -482,10 +476,6 @@ export default function DisbursementsPage() {
     toast.success("Disbursements refreshed");
   };
 
-  // Check if disbursement is eligible for retry verification
-  const isEligibleForRetryVerification = (disbursement: Disbursement) => {
-    return disbursement.order_status === "processing";
-  };
 
   // Client-side filtering function for account numbers
   const filterDisbursementsByAccount = (disbursements: Disbursement[]) => {
@@ -517,72 +507,9 @@ export default function DisbursementsPage() {
   };
 
   const handleViewDetails = (disbursement: Disbursement) => {
-    navigate(`/disbursements/${disbursement.id}`);
+    window.open(`/disbursements/${disbursement.id}`, '_blank');
   };
 
-  const handleRetryCallback = async (disbursement: Disbursement) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to retry the callback for disbursement ${disbursement.cmpss_disbursement_id}?`
-    );
-    if (!confirmed) return;
-
-    setRetryingCallback(disbursement.id);
-    try {
-      await api.post("/disbursements/trigger-callback", {
-        cmpss_disbursement_id: disbursement.cmpss_disbursement_id,
-      });
-      toast.success("Callback triggered successfully");
-    } catch (error: any) {
-      console.error("Error triggering callback:", error);
-      if (error.response?.status === 403) {
-        toast.error(
-          "Access denied: You don't have permission to trigger callbacks"
-        );
-      } else if (error.response?.data?.detail) {
-        toast.error(`Error: ${error.response.data.detail}`);
-      } else {
-        toast.error("Failed to trigger callback. Please try again.");
-      }
-    } finally {
-      setRetryingCallback(null);
-    }
-  };
-
-  const handleRetryVerification = async (disbursement: Disbursement) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to retry verification for disbursement ${disbursement.cmpss_disbursement_id}?`
-    );
-    if (!confirmed) return;
-
-    setRetryingVerification(disbursement.id);
-    try {
-      await api.post(
-        "/disbursements/query-timeout-order",
-        {
-          cmpss_disbursement_id: disbursement.cmpss_disbursement_id,
-        },
-        {
-          headers: {
-            "x-do-secret": "df0f5bfc-a858-4b2d-9041-af2651c0cfe9",
-          },
-        }
-      );
-      toast.success("Verification retry triggered successfully");
-    } catch (error: any) {
-      console.error("Error triggering verification retry:", error);
-      if (error.response?.status === 403) {
-        toast.error(
-          "Access denied: You don't have permission to retry verification"
-        );
-      } else if (error.response?.data?.detail) {
-        toast.error(`Error: ${error.response.data.detail}`);
-      } else {
-        toast.error("Failed to trigger verification retry. Please try again.");
-      }
-    } finally {
-      setRetryingVerification(null);
-    }
-  };
 
   const handleExport = () => {
     const confirmed = window.confirm(
@@ -1345,40 +1272,6 @@ export default function DisbursementsPage() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRetryCallback(disbursement)}
-                            disabled={retryingCallback === disbursement.id}
-                            title="Retry Callback"
-                          >
-                            {retryingCallback === disbursement.id ? (
-                              <RefreshCw className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <RotateCcw className="w-4 h-4" />
-                            )}
-                          </Button>
-
-                          {isEligibleForRetryVerification(disbursement) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                handleRetryVerification(disbursement)
-                              }
-                              disabled={
-                                retryingVerification === disbursement.id
-                              }
-                              title="Retry Verification"
-                            >
-                              {retryingVerification === disbursement.id ? (
-                                <RefreshCw className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <CheckCircle className="w-4 h-4" />
-                              )}
-                            </Button>
-                          )}
                         </div>
                       </TableCell>
                     </TableRow>
