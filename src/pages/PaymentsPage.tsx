@@ -48,6 +48,16 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
+// Helper function to get today's date at 00:00 UTC
+const getTodayUTC = () => {
+  const today = new Date();
+  const utcToday = new Date(
+    today.getTime() + today.getTimezoneOffset() * 60000
+  );
+  utcToday.setUTCHours(0, 0, 0, 0);
+  return utcToday;
+};
+
 export default function PaymentsPage() {
   const navigate = useNavigate();
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -64,13 +74,8 @@ export default function PaymentsPage() {
   const [providerIdFilter, setProviderIdFilter] = useState("");
   const [merchantPaymentIdFilter, setMerchantPaymentIdFilter] = useState("");
   const [cmpssPaymentIdFilter, setCmpssPaymentIdFilter] = useState("");
-  const [startDateFilter, setStartDateFilter] = useState<Date | undefined>(
-    () => {
-      // Set default start date to today at 00:00
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      return today;
-    }
+  const [startDateFilter, setStartDateFilter] = useState<Date | undefined>(() =>
+    getTodayUTC()
   );
   const [endDateFilter, setEndDateFilter] = useState<Date | undefined>(
     undefined
@@ -89,12 +94,7 @@ export default function PaymentsPage() {
     useState("");
   const [appliedStartDateFilter, setAppliedStartDateFilter] = useState<
     Date | undefined
-  >(() => {
-    // Set default start date to today at 00:00
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today;
-  });
+  >(() => getTodayUTC());
   const [appliedEndDateFilter, setAppliedEndDateFilter] = useState<
     Date | undefined
   >(undefined);
@@ -361,28 +361,6 @@ export default function PaymentsPage() {
     }
   };
 
-  // Check if filters are at default values
-  const isDefaultFilter = (
-    filterName: string,
-    value: string | Date | undefined
-  ) => {
-    if (filterName === "start_date" || filterName === "end_date") {
-      const today = new Date();
-      const startOfDay = new Date(today);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(today);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      if (filterName === "start_date" && value instanceof Date) {
-        return value.getTime() === startOfDay.getTime();
-      }
-      if (filterName === "end_date" && value instanceof Date) {
-        return value.getTime() === endOfDay.getTime();
-      }
-    }
-    return false;
-  };
-
   // Apply current filter values to the applied filters
   const applyFilters = () => {
     console.log("Applying filters:", {
@@ -423,10 +401,8 @@ export default function PaymentsPage() {
     setMerchantPaymentIdFilter("");
     setCmpssPaymentIdFilter("");
     // Reset to today's start date and clear end date
-    const today = new Date();
-    const startOfDay = new Date(today);
-    startOfDay.setHours(0, 0, 0, 0);
-    setStartDateFilter(startOfDay);
+    const utcToday = getTodayUTC();
+    setStartDateFilter(utcToday);
     setEndDateFilter(undefined);
 
     // Clear applied filter values
@@ -437,7 +413,7 @@ export default function PaymentsPage() {
     setAppliedProviderIdFilter("");
     setAppliedMerchantPaymentIdFilter("");
     setAppliedCmpssPaymentIdFilter("");
-    setAppliedStartDateFilter(startOfDay);
+    setAppliedStartDateFilter(utcToday);
     setAppliedEndDateFilter(undefined);
 
     setCurrentPage(1);
@@ -454,7 +430,6 @@ export default function PaymentsPage() {
     toast.success("Payments refreshed");
   };
 
-
   const handleCopyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -465,9 +440,8 @@ export default function PaymentsPage() {
   };
 
   const handleViewDetails = (payment: Payment) => {
-    window.open(`/payments/${payment.id}`, '_blank');
+    window.open(`/payments/${payment.id}`, "_blank");
   };
-
 
   const handleExport = () => {
     const confirmed = window.confirm(
@@ -775,36 +749,13 @@ export default function PaymentsPage() {
                         </Badge>
                       )}
                       {appliedStartDateFilter && (
-                        <Badge
-                          variant={
-                            isDefaultFilter(
-                              "start_date",
-                              appliedStartDateFilter
-                            )
-                              ? "default"
-                              : "secondary"
-                          }
-                          className="text-xs"
-                        >
+                        <Badge variant="secondary" className="text-xs">
                           From: {appliedStartDateFilter.toLocaleDateString()}
-                          {isDefaultFilter(
-                            "start_date",
-                            appliedStartDateFilter
-                          ) && " (Default)"}
                         </Badge>
                       )}
                       {appliedEndDateFilter && (
-                        <Badge
-                          variant={
-                            isDefaultFilter("end_date", appliedEndDateFilter)
-                              ? "default"
-                              : "secondary"
-                          }
-                          className="text-xs"
-                        >
+                        <Badge variant="secondary" className="text-xs">
                           To: {appliedEndDateFilter.toLocaleDateString()}
-                          {isDefaultFilter("end_date", appliedEndDateFilter) &&
-                            " (Default)"}
                         </Badge>
                       )}
                     </div>

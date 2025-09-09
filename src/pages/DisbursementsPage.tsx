@@ -46,6 +46,16 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
+// Helper function to get today's date at 00:00 UTC
+const getTodayUTC = () => {
+  const today = new Date();
+  const utcToday = new Date(
+    today.getTime() + today.getTimezoneOffset() * 60000
+  );
+  utcToday.setUTCHours(0, 0, 0, 0);
+  return utcToday;
+};
+
 export default function DisbursementsPage() {
   const navigate = useNavigate();
   const [disbursements, setDisbursements] = useState<Disbursement[]>([]);
@@ -65,13 +75,8 @@ export default function DisbursementsPage() {
   const [cmpssDisbursementIdFilter, setCmpssDisbursementIdFilter] =
     useState("");
   const [accountFilter, setAccountFilter] = useState("");
-  const [startDateFilter, setStartDateFilter] = useState<Date | undefined>(
-    () => {
-      // Set default start date to today at 00:00
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      return today;
-    }
+  const [startDateFilter, setStartDateFilter] = useState<Date | undefined>(() =>
+    getTodayUTC()
   );
   const [endDateFilter, setEndDateFilter] = useState<Date | undefined>(
     undefined
@@ -95,12 +100,7 @@ export default function DisbursementsPage() {
   const [appliedAccountFilter, setAppliedAccountFilter] = useState("");
   const [appliedStartDateFilter, setAppliedStartDateFilter] = useState<
     Date | undefined
-  >(() => {
-    // Set default start date to today at 00:00
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today;
-  });
+  >(() => getTodayUTC());
   const [appliedEndDateFilter, setAppliedEndDateFilter] = useState<
     Date | undefined
   >(undefined);
@@ -373,28 +373,6 @@ export default function DisbursementsPage() {
     }
   };
 
-  // Check if filters are at default values
-  const isDefaultFilter = (
-    filterName: string,
-    value: string | Date | undefined
-  ) => {
-    if (filterName === "start_date" || filterName === "end_date") {
-      const today = new Date();
-      const startOfDay = new Date(today);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(today);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      if (filterName === "start_date" && value instanceof Date) {
-        return value.getTime() === startOfDay.getTime();
-      }
-      if (filterName === "end_date" && value instanceof Date) {
-        return value.getTime() === endOfDay.getTime();
-      }
-    }
-    return false;
-  };
-
   // Apply current filter values to the applied filters
   const applyFilters = () => {
     console.log("Applying filters:", {
@@ -444,10 +422,8 @@ export default function DisbursementsPage() {
     setCmpssDisbursementIdFilter("");
     setAccountFilter("");
     // Reset to today's start date and clear end date
-    const today = new Date();
-    const startOfDay = new Date(today);
-    startOfDay.setHours(0, 0, 0, 0);
-    setStartDateFilter(startOfDay);
+    const utcToday = getTodayUTC();
+    setStartDateFilter(utcToday);
     setEndDateFilter(undefined);
 
     // Clear applied filter values
@@ -459,7 +435,7 @@ export default function DisbursementsPage() {
     setAppliedMerchantDisbursementIdFilter("");
     setAppliedCmpssDisbursementIdFilter("");
     setAppliedAccountFilter("");
-    setAppliedStartDateFilter(startOfDay);
+    setAppliedStartDateFilter(utcToday);
     setAppliedEndDateFilter(undefined);
 
     setCurrentPage(1);
@@ -475,7 +451,6 @@ export default function DisbursementsPage() {
     fetchDisbursements();
     toast.success("Disbursements refreshed");
   };
-
 
   // Client-side filtering function for account numbers
   const filterDisbursementsByAccount = (disbursements: Disbursement[]) => {
@@ -507,9 +482,8 @@ export default function DisbursementsPage() {
   };
 
   const handleViewDetails = (disbursement: Disbursement) => {
-    window.open(`/disbursements/${disbursement.id}`, '_blank');
+    window.open(`/disbursements/${disbursement.id}`, "_blank");
   };
-
 
   const handleExport = () => {
     const confirmed = window.confirm(
@@ -825,36 +799,13 @@ export default function DisbursementsPage() {
                         </Badge>
                       )}
                       {appliedStartDateFilter && (
-                        <Badge
-                          variant={
-                            isDefaultFilter(
-                              "start_date",
-                              appliedStartDateFilter
-                            )
-                              ? "default"
-                              : "secondary"
-                          }
-                          className="text-xs"
-                        >
+                        <Badge variant="secondary" className="text-xs">
                           From: {appliedStartDateFilter.toLocaleDateString()}
-                          {isDefaultFilter(
-                            "start_date",
-                            appliedStartDateFilter
-                          ) && " (Default)"}
                         </Badge>
                       )}
                       {appliedEndDateFilter && (
-                        <Badge
-                          variant={
-                            isDefaultFilter("end_date", appliedEndDateFilter)
-                              ? "default"
-                              : "secondary"
-                          }
-                          className="text-xs"
-                        >
+                        <Badge variant="secondary" className="text-xs">
                           To: {appliedEndDateFilter.toLocaleDateString()}
-                          {isDefaultFilter("end_date", appliedEndDateFilter) &&
-                            " (Default)"}
                         </Badge>
                       )}
                     </div>
