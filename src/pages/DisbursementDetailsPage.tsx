@@ -9,7 +9,17 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Copy, Download, RotateCcw, CheckCircle, RefreshCw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ArrowLeft, Copy, Download, RotateCcw, CheckCircle, RefreshCw, Undo2 } from "lucide-react";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { toast } from "sonner";
 import { Disbursement } from "@/types/disbursement";
@@ -25,6 +35,9 @@ export default function DisbursementDetailsPage() {
   const [repushing, setRepushing] = useState(false);
   const [retryingCallback, setRetryingCallback] = useState(false);
   const [retryingVerification, setRetryingVerification] = useState(false);
+  const [refunding, setRefunding] = useState(false);
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [refundPassword, setRefundPassword] = useState("");
 
   useEffect(() => {
     if (disbursementId && !isNaN(Number(disbursementId))) {
@@ -215,12 +228,55 @@ export default function DisbursementDetailsPage() {
     }
   };
 
+  // Handle mark as refunded
+  const handleMarkAsRefunded = async () => {
+    if (!disbursement || !refundPassword.trim()) {
+      toast.error("Please enter a password");
+      return;
+    }
+
+    setRefunding(true);
+    try {
+      await api.post("/disbursements/mark-paid-order-refunded", {
+        cmpss_disbursement_id: disbursement.cmpss_disbursement_id,
+        password: refundPassword,
+      });
+      toast.success("Disbursement marked as refunded successfully");
+      setRefundDialogOpen(false);
+      setRefundPassword("");
+      // Refresh the disbursement details to get updated status
+      fetchDisbursementDetails();
+    } catch (error: any) {
+      console.error("Error marking disbursement as refunded:", error);
+      if (error.response?.status === 403) {
+        toast.error(
+          "Access denied: You don't have permission to mark disbursements as refunded"
+        );
+      } else if (error.response?.status === 400) {
+        toast.error("Invalid password or disbursement cannot be refunded");
+      } else if (error.response?.data?.detail) {
+        toast.error(`Error: ${error.response.data.detail}`);
+      } else {
+        toast.error("Failed to mark disbursement as refunded. Please try again.");
+      }
+    } finally {
+      setRefunding(false);
+    }
+  };
+
+  // Check if disbursement is eligible for refund
+  const isEligibleForRefund = (disbursement: Disbursement) => {
+    return disbursement.order_status === "paid";
+  };
+
   const getStatusBadge = (status: string) => {
     const statusColors = {
       pending: "bg-yellow-100 text-yellow-800",
+      processing: "bg-blue-100 text-blue-800",
       paid: "bg-green-100 text-green-800",
       failed: "bg-red-100 text-red-800",
       cancelled: "bg-gray-100 text-gray-800",
+      refunded: "bg-red-100 text-red-800",
     };
 
     return (
@@ -351,6 +407,66 @@ export default function DisbursementDetailsPage() {
                 />
                 {repushing ? "Repushing..." : "Repush Disbursement"}
               </Button>
+            )}
+
+            {isEligibleForRefund(disbursement) && (
+              <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    className="flex items-center gap-2"
+                  >
+                    <Undo2 className="w-4 h-4" />
+                    Mark as Refunded
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Mark as Refunded</DialogTitle>
+                    <DialogDescription>
+                      This action will mark the disbursement as refunded. Please enter the required password to confirm.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <label htmlFor="password" className="text-right">
+                        Password
+                      </label>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={refundPassword}
+                        onChange={(e) => setRefundPassword(e.target.value)}
+                        className="col-span-3"
+                        placeholder="Enter password"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleMarkAsRefunded();
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setRefundDialogOpen(false);
+                        setRefundPassword("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleMarkAsRefunded}
+                      disabled={refunding || !refundPassword.trim()}
+                    >
+                      {refunding ? "Processing..." : "Mark as Refunded"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             )}
             <Button
               variant="outline"

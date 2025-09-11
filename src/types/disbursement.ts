@@ -42,6 +42,7 @@ export interface DisbursementsResponse {
   total_success: [number, string];
   total_failed: [number, string];
   total_pending: [number, string];
+  total_refunded: [number, string];
 }
 
 export interface DisbursementFilters {

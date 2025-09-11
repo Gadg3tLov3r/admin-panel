@@ -124,6 +124,7 @@ export default function DisbursementsPage() {
     total_success: [0, "0"] as [number, string],
     total_failed: [0, "0"] as [number, string],
     total_pending: [0, "0"] as [number, string],
+    total_refunded: [0, "0"] as [number, string],
   });
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
@@ -253,6 +254,7 @@ export default function DisbursementsPage() {
         total_success: data.total_success || [0, "0"],
         total_failed: data.total_failed || [0, "0"],
         total_pending: data.total_pending || [0, "0"],
+        total_refunded: data.total_refunded || [0, "0"],
       });
 
       setPermissionError(null); // Clear any previous permission errors
@@ -541,6 +543,7 @@ export default function DisbursementsPage() {
       paid: "bg-green-100 text-green-800",
       failed: "bg-red-100 text-red-800",
       cancelled: "bg-gray-100 text-gray-800",
+      refunded: "bg-red-100 text-red-800",
     };
 
     return (
@@ -579,144 +582,134 @@ export default function DisbursementsPage() {
       subtitle="Manage and monitor disbursement transactions"
     >
       {/* Summary Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3 mb-4">
         {/* Total Amount */}
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Total Amount
-                </p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(
-                    stats.total_amount,
-                    disbursements[0]?.currency_code || "USD"
-                  )}
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <span className="text-blue-600 font-semibold">₨</span>
-              </div>
+          <CardContent className="p-3">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">
+                Total Disbursements
+              </p>
+              <p className="text-lg font-bold">
+                {formatCurrency(
+                  stats.total_amount,
+                  disbursements[0]?.currency_code || "USD"
+                )}
+              </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Successful */}
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Successful
-                </p>
-                <p className="text-2xl font-bold text-green-600">
-                  {formatCurrency(
-                    stats.total_success[1],
-                    disbursements[0]?.currency_code || "USD"
-                  )}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {stats.total_success[0]} disbursements
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                <span className="text-green-600 font-semibold">✓</span>
-              </div>
+          <CardContent className="p-3">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">
+                Successful
+              </p>
+              <p className="text-lg font-bold text-green-600">
+                {formatCurrency(
+                  stats.total_success[1],
+                  disbursements[0]?.currency_code || "USD"
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {stats.total_success[0]} disbursements
+              </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Total Provider Fees */}
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Total Provider Fees
-                </p>
-                <p className="text-2xl font-bold text-orange-600">
-                  {formatCurrency(
-                    stats.total_provider_fee,
-                    disbursements[0]?.currency_code || "USD"
-                  )}
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                <span className="text-orange-600 font-semibold">🏦</span>
-              </div>
+          <CardContent className="p-3">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">
+                Provider Fees
+              </p>
+              <p className="text-lg font-bold text-orange-600">
+                {formatCurrency(
+                  stats.total_provider_fee,
+                  disbursements[0]?.currency_code || "USD"
+                )}
+              </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Total Merchant Fees */}
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Total Merchant Fees
-                </p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {formatCurrency(
-                    stats.total_merchant_fee,
-                    disbursements[0]?.currency_code || "USD"
-                  )}
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                <span className="text-purple-600 font-semibold">💸</span>
-              </div>
+          <CardContent className="p-3">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">
+                Merchant Fees
+              </p>
+              <p className="text-lg font-bold text-purple-600">
+                {formatCurrency(
+                  stats.total_merchant_fee,
+                  disbursements[0]?.currency_code || "USD"
+                )}
+              </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Failed */}
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Failed
-                </p>
-                <p className="text-2xl font-bold text-red-600">
-                  {formatCurrency(
-                    stats.total_failed[1],
-                    disbursements[0]?.currency_code || "USD"
-                  )}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {stats.total_failed[0]} disbursements
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                <span className="text-red-600 font-semibold">✗</span>
-              </div>
+          <CardContent className="p-3">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">
+                Failed
+              </p>
+              <p className="text-lg font-bold text-red-600">
+                {formatCurrency(
+                  stats.total_failed[1],
+                  disbursements[0]?.currency_code || "USD"
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {stats.total_failed[0]} disbursements
+              </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Pending */}
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Pending
-                </p>
-                <p className="text-2xl font-bold text-yellow-600">
-                  {formatCurrency(
-                    stats.total_pending[1],
-                    disbursements[0]?.currency_code || "USD"
-                  )}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {stats.total_pending[0]} disbursements
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                <span className="text-yellow-600 font-semibold">⏳</span>
-              </div>
+          <CardContent className="p-3">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">
+                Pending
+              </p>
+              <p className="text-lg font-bold text-yellow-600">
+                {formatCurrency(
+                  stats.total_pending[1],
+                  disbursements[0]?.currency_code || "USD"
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {stats.total_pending[0]} disbursements
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Refunded */}
+        <Card>
+          <CardContent className="p-3">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">
+                Refunded
+              </p>
+              <p className="text-lg font-bold text-gray-600">
+                {formatCurrency(
+                  stats.total_refunded[1],
+                  disbursements[0]?.currency_code || "USD"
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {stats.total_refunded[0]} disbursements
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -903,6 +896,7 @@ export default function DisbursementsPage() {
                         <SelectItem value="paid">Paid</SelectItem>
                         <SelectItem value="failed">Failed</SelectItem>
                         <SelectItem value="cancelled">Cancelled</SelectItem>
+                        <SelectItem value="refunded">Refunded</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
