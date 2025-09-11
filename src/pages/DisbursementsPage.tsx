@@ -499,6 +499,7 @@ export default function DisbursementsPage() {
       "Merchant Disbursement ID",
       "Amount",
       "Status",
+      "Callback Code",
       "Payment Method",
       "Provider",
       "Merchant",
@@ -511,6 +512,7 @@ export default function DisbursementsPage() {
       disbursement.merchant_disbursement_id,
       disbursement.order_amount,
       disbursement.order_status,
+      disbursement.callback_response_code || "",
       disbursement.payment_method_name,
       disbursement.provider_name,
       disbursement.merchant_name,
@@ -1109,6 +1111,7 @@ export default function DisbursementsPage() {
                   <TableHead>Merchant Fee</TableHead>
                   <TableHead>Provider Commission</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Callback Code</TableHead>
                   <TableHead>Provider</TableHead>
                   <TableHead>Method</TableHead>
                   <TableHead>Account</TableHead>
@@ -1182,6 +1185,11 @@ export default function DisbursementsPage() {
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(disbursement.order_status)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {disbursement.callback_response_code || "N/A"}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm font-medium">

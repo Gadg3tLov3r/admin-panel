@@ -303,6 +303,7 @@ export default function DisbursementDetailsPage() {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
+      timeZone: "UTC",
     });
   };
 
@@ -576,6 +577,14 @@ export default function DisbursementDetailsPage() {
                 </label>
                 <p className="text-sm mt-1">
                   {disbursement.payment_method_name}
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Callback Response Code
+                </label>
+                <p className="text-sm mt-1 font-mono">
+                  {disbursement.callback_response_code || "N/A"}
                 </p>
               </div>
               <div>

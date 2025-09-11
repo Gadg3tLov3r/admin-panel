@@ -13,6 +13,7 @@ export interface Disbursement {
   failed_url: string | null;
   ipn_url: string;
   order_status: string;
+  callback_response_code: string | null;
   retry_callback_count: number;
   retry_verify_count: number;
   order_metadata: Record<string, any>;
