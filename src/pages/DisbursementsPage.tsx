@@ -213,27 +213,27 @@ export default function DisbursementsPage() {
         }),
         ...(appliedStartDateFilter && {
           start_date:
-            appliedStartDateFilter.getFullYear() +
+            appliedStartDateFilter.getUTCFullYear() +
             "-" +
-            String(appliedStartDateFilter.getMonth() + 1).padStart(2, "0") +
+            String(appliedStartDateFilter.getUTCMonth() + 1).padStart(2, "0") +
             "-" +
-            String(appliedStartDateFilter.getDate()).padStart(2, "0") +
+            String(appliedStartDateFilter.getUTCDate()).padStart(2, "0") +
             "T" +
-            String(appliedStartDateFilter.getHours()).padStart(2, "0") +
+            String(appliedStartDateFilter.getUTCHours()).padStart(2, "0") +
             ":" +
-            String(appliedStartDateFilter.getMinutes()).padStart(2, "0"),
+            String(appliedStartDateFilter.getUTCMinutes()).padStart(2, "0"),
         }),
         ...(appliedEndDateFilter && {
           end_date:
-            appliedEndDateFilter.getFullYear() +
+            appliedEndDateFilter.getUTCFullYear() +
             "-" +
-            String(appliedEndDateFilter.getMonth() + 1).padStart(2, "0") +
+            String(appliedEndDateFilter.getUTCMonth() + 1).padStart(2, "0") +
             "-" +
-            String(appliedEndDateFilter.getDate()).padStart(2, "0") +
+            String(appliedEndDateFilter.getUTCDate()).padStart(2, "0") +
             "T" +
-            String(appliedEndDateFilter.getHours()).padStart(2, "0") +
+            String(appliedEndDateFilter.getUTCHours()).padStart(2, "0") +
             ":" +
-            String(appliedEndDateFilter.getMinutes()).padStart(2, "0"),
+            String(appliedEndDateFilter.getUTCMinutes()).padStart(2, "0"),
         }),
       };
 

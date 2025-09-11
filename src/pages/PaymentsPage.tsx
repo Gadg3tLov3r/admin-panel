@@ -207,27 +207,27 @@ export default function PaymentsPage() {
         }),
         ...(appliedStartDateFilter && {
           start_date:
-            appliedStartDateFilter.getFullYear() +
+            appliedStartDateFilter.getUTCFullYear() +
             "-" +
-            String(appliedStartDateFilter.getMonth() + 1).padStart(2, "0") +
+            String(appliedStartDateFilter.getUTCMonth() + 1).padStart(2, "0") +
             "-" +
-            String(appliedStartDateFilter.getDate()).padStart(2, "0") +
+            String(appliedStartDateFilter.getUTCDate()).padStart(2, "0") +
             "T" +
-            String(appliedStartDateFilter.getHours()).padStart(2, "0") +
+            String(appliedStartDateFilter.getUTCHours()).padStart(2, "0") +
             ":" +
-            String(appliedStartDateFilter.getMinutes()).padStart(2, "0"),
+            String(appliedStartDateFilter.getUTCMinutes()).padStart(2, "0"),
         }),
         ...(appliedEndDateFilter && {
           end_date:
-            appliedEndDateFilter.getFullYear() +
+            appliedEndDateFilter.getUTCFullYear() +
             "-" +
-            String(appliedEndDateFilter.getMonth() + 1).padStart(2, "0") +
+            String(appliedEndDateFilter.getUTCMonth() + 1).padStart(2, "0") +
             "-" +
-            String(appliedEndDateFilter.getDate()).padStart(2, "0") +
+            String(appliedEndDateFilter.getUTCDate()).padStart(2, "0") +
             "T" +
-            String(appliedEndDateFilter.getHours()).padStart(2, "0") +
+            String(appliedEndDateFilter.getUTCHours()).padStart(2, "0") +
             ":" +
-            String(appliedEndDateFilter.getMinutes()).padStart(2, "0"),
+            String(appliedEndDateFilter.getUTCMinutes()).padStart(2, "0"),
         }),
       };
 
@@ -494,7 +494,7 @@ export default function PaymentsPage() {
     const statusColors = {
       pending: "bg-yellow-100 text-yellow-800",
       processing: "bg-blue-100 text-blue-800",
-      completed: "bg-green-100 text-green-800",
+      paid: "bg-green-100 text-green-800",
       failed: "bg-red-100 text-red-800",
       cancelled: "bg-gray-100 text-gray-800",
     };
@@ -839,7 +839,7 @@ export default function PaymentsPage() {
                         <SelectItem value="all">All Status</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="processing">Processing</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="paid">Paid</SelectItem>
                         <SelectItem value="failed">Failed</SelectItem>
                         <SelectItem value="cancelled">Cancelled</SelectItem>
                       </SelectContent>
