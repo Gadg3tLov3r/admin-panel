@@ -74,6 +74,8 @@ export default function PaymentsPage() {
   const [providerIdFilter, setProviderIdFilter] = useState("");
   const [merchantPaymentIdFilter, setMerchantPaymentIdFilter] = useState("");
   const [cmpssPaymentIdFilter, setCmpssPaymentIdFilter] = useState("");
+  const [callbackResponseCodeFilter, setCallbackResponseCodeFilter] =
+    useState("");
   const [startDateFilter, setStartDateFilter] = useState<Date | undefined>(() =>
     getTodayUTC()
   );
@@ -92,6 +94,10 @@ export default function PaymentsPage() {
     useState("");
   const [appliedCmpssPaymentIdFilter, setAppliedCmpssPaymentIdFilter] =
     useState("");
+  const [
+    appliedCallbackResponseCodeFilter,
+    setAppliedCallbackResponseCodeFilter,
+  ] = useState("");
   const [appliedStartDateFilter, setAppliedStartDateFilter] = useState<
     Date | undefined
   >(() => getTodayUTC());
@@ -205,6 +211,9 @@ export default function PaymentsPage() {
         ...(appliedCmpssPaymentIdFilter && {
           cmpss_payment_id: appliedCmpssPaymentIdFilter,
         }),
+        ...(appliedCallbackResponseCodeFilter && {
+          callback_response_code: appliedCallbackResponseCodeFilter,
+        }),
         ...(appliedStartDateFilter && {
           start_date:
             appliedStartDateFilter.getUTCFullYear() +
@@ -299,6 +308,7 @@ export default function PaymentsPage() {
     appliedProviderIdFilter,
     appliedMerchantPaymentIdFilter,
     appliedCmpssPaymentIdFilter,
+    appliedCallbackResponseCodeFilter,
     appliedStartDateFilter,
     appliedEndDateFilter,
   ]);
@@ -339,6 +349,10 @@ export default function PaymentsPage() {
     setCmpssPaymentIdFilter(value);
   };
 
+  const handleCallbackResponseCodeFilter = (value: string) => {
+    setCallbackResponseCodeFilter(value);
+  };
+
   const handleStartDateFilter = (value: Date | undefined) => {
     if (value) {
       // Set to start of day
@@ -372,6 +386,7 @@ export default function PaymentsPage() {
       providerIdFilter,
       merchantPaymentIdFilter,
       cmpssPaymentIdFilter,
+      callbackResponseCodeFilter,
       startDateFilter,
       endDateFilter,
     });
@@ -384,6 +399,7 @@ export default function PaymentsPage() {
     setAppliedProviderIdFilter(providerIdFilter);
     setAppliedMerchantPaymentIdFilter(merchantPaymentIdFilter);
     setAppliedCmpssPaymentIdFilter(cmpssPaymentIdFilter);
+    setAppliedCallbackResponseCodeFilter(callbackResponseCodeFilter);
     setAppliedStartDateFilter(startDateFilter);
     setAppliedEndDateFilter(endDateFilter);
 
@@ -400,6 +416,7 @@ export default function PaymentsPage() {
     setProviderIdFilter("");
     setMerchantPaymentIdFilter("");
     setCmpssPaymentIdFilter("");
+    setCallbackResponseCodeFilter("");
     // Reset to today's start date and clear end date
     const utcToday = getTodayUTC();
     setStartDateFilter(utcToday);
@@ -413,6 +430,7 @@ export default function PaymentsPage() {
     setAppliedProviderIdFilter("");
     setAppliedMerchantPaymentIdFilter("");
     setAppliedCmpssPaymentIdFilter("");
+    setAppliedCallbackResponseCodeFilter("");
     setAppliedStartDateFilter(utcToday);
     setAppliedEndDateFilter(undefined);
 
@@ -696,6 +714,7 @@ export default function PaymentsPage() {
                     appliedProviderIdFilter ||
                     appliedMerchantPaymentIdFilter ||
                     appliedCmpssPaymentIdFilter ||
+                    appliedCallbackResponseCodeFilter ||
                     appliedStartDateFilter ||
                     appliedEndDateFilter) && (
                     <div className="flex items-center gap-2 flex-wrap ml-4">
@@ -748,6 +767,11 @@ export default function PaymentsPage() {
                           CMPSS ID: {appliedCmpssPaymentIdFilter}
                         </Badge>
                       )}
+                      {appliedCallbackResponseCodeFilter && (
+                        <Badge variant="secondary" className="text-xs">
+                          Callback Code: {appliedCallbackResponseCodeFilter}
+                        </Badge>
+                      )}
                       {appliedStartDateFilter && (
                         <Badge variant="secondary" className="text-xs">
                           From: {appliedStartDateFilter.toLocaleDateString()}
@@ -773,7 +797,7 @@ export default function PaymentsPage() {
             <CardContent>
               <div className="space-y-4">
                 {/* Payment IDs and Date Range Row */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">
                       CMPSS Payment ID
@@ -802,6 +826,19 @@ export default function PaymentsPage() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">
+                      Callback Response Code
+                    </label>
+                    <Input
+                      placeholder="Enter callback response code..."
+                      className="w-full"
+                      value={callbackResponseCodeFilter}
+                      onChange={(e) =>
+                        handleCallbackResponseCodeFilter(e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
                       Start Date
                     </label>
                     <DatePicker
@@ -823,7 +860,7 @@ export default function PaymentsPage() {
                 </div>
 
                 {/* Filters Row */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">
                       Status
@@ -1039,6 +1076,7 @@ export default function PaymentsPage() {
                     appliedMerchantIdFilter ||
                     appliedMerchantPaymentIdFilter ||
                     appliedCmpssPaymentIdFilter ||
+                    appliedCallbackResponseCodeFilter ||
                     appliedStartDateFilter ||
                     appliedEndDateFilter
                       ? "Try adjusting your filters to see more results."
@@ -1050,6 +1088,7 @@ export default function PaymentsPage() {
                     appliedMerchantIdFilter ||
                     appliedMerchantPaymentIdFilter ||
                     appliedCmpssPaymentIdFilter ||
+                    appliedCallbackResponseCodeFilter ||
                     appliedStartDateFilter ||
                     appliedEndDateFilter) && (
                     <Button variant="outline" onClick={clearFilters}>
@@ -1130,7 +1169,14 @@ export default function PaymentsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {getStatusBadge(payment.order_status)}
+                      <div className="space-y-1">
+                        {getStatusBadge(payment.order_status)}
+                        {payment.callback_response_code && (
+                          <div className="text-xs text-muted-foreground">
+                            Code: {payment.callback_response_code}
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm font-medium">

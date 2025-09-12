@@ -74,6 +74,8 @@ export default function DisbursementsPage() {
     useState("");
   const [cmpssDisbursementIdFilter, setCmpssDisbursementIdFilter] =
     useState("");
+  const [callbackResponseCodeFilter, setCallbackResponseCodeFilter] =
+    useState("");
   const [accountFilter, setAccountFilter] = useState("");
   const [startDateFilter, setStartDateFilter] = useState<Date | undefined>(() =>
     getTodayUTC()
@@ -96,6 +98,10 @@ export default function DisbursementsPage() {
   const [
     appliedCmpssDisbursementIdFilter,
     setAppliedCmpssDisbursementIdFilter,
+  ] = useState("");
+  const [
+    appliedCallbackResponseCodeFilter,
+    setAppliedCallbackResponseCodeFilter,
   ] = useState("");
   const [appliedAccountFilter, setAppliedAccountFilter] = useState("");
   const [appliedStartDateFilter, setAppliedStartDateFilter] = useState<
@@ -212,6 +218,9 @@ export default function DisbursementsPage() {
         ...(appliedCmpssDisbursementIdFilter && {
           cmpss_disbursement_id: appliedCmpssDisbursementIdFilter,
         }),
+        ...(appliedCallbackResponseCodeFilter && {
+          callback_response_code: appliedCallbackResponseCodeFilter,
+        }),
         ...(appliedStartDateFilter && {
           start_date:
             appliedStartDateFilter.getUTCFullYear() +
@@ -309,6 +318,7 @@ export default function DisbursementsPage() {
     appliedProviderIdFilter,
     appliedMerchantDisbursementIdFilter,
     appliedCmpssDisbursementIdFilter,
+    appliedCallbackResponseCodeFilter,
     appliedStartDateFilter,
     appliedEndDateFilter,
   ]);
@@ -349,6 +359,10 @@ export default function DisbursementsPage() {
     setCmpssDisbursementIdFilter(value);
   };
 
+  const handleCallbackResponseCodeFilter = (value: string) => {
+    setCallbackResponseCodeFilter(value);
+  };
+
   const handleAccountFilter = (value: string) => {
     setAccountFilter(value);
   };
@@ -387,6 +401,7 @@ export default function DisbursementsPage() {
       providerIdFilter,
       merchantDisbursementIdFilter,
       cmpssDisbursementIdFilter,
+      callbackResponseCodeFilter,
       startDateFilter,
       endDateFilter,
     });
@@ -399,6 +414,7 @@ export default function DisbursementsPage() {
     setAppliedProviderIdFilter(providerIdFilter);
     setAppliedMerchantDisbursementIdFilter(merchantDisbursementIdFilter);
     setAppliedCmpssDisbursementIdFilter(cmpssDisbursementIdFilter);
+    setAppliedCallbackResponseCodeFilter(callbackResponseCodeFilter);
     setAppliedAccountFilter(accountFilter);
     setAppliedStartDateFilter(startDateFilter);
     setAppliedEndDateFilter(endDateFilter);
@@ -422,6 +438,7 @@ export default function DisbursementsPage() {
     setProviderIdFilter("");
     setMerchantDisbursementIdFilter("");
     setCmpssDisbursementIdFilter("");
+    setCallbackResponseCodeFilter("");
     setAccountFilter("");
     // Reset to today's start date and clear end date
     const utcToday = getTodayUTC();
@@ -436,6 +453,7 @@ export default function DisbursementsPage() {
     setAppliedProviderIdFilter("");
     setAppliedMerchantDisbursementIdFilter("");
     setAppliedCmpssDisbursementIdFilter("");
+    setAppliedCallbackResponseCodeFilter("");
     setAppliedAccountFilter("");
     setAppliedStartDateFilter(utcToday);
     setAppliedEndDateFilter(undefined);
@@ -735,6 +753,7 @@ export default function DisbursementsPage() {
                     appliedProviderIdFilter ||
                     appliedMerchantDisbursementIdFilter ||
                     appliedCmpssDisbursementIdFilter ||
+                    appliedCallbackResponseCodeFilter ||
                     appliedAccountFilter ||
                     appliedStartDateFilter ||
                     appliedEndDateFilter) && (
@@ -788,6 +807,11 @@ export default function DisbursementsPage() {
                           CMPSS ID: {appliedCmpssDisbursementIdFilter}
                         </Badge>
                       )}
+                      {appliedCallbackResponseCodeFilter && (
+                        <Badge variant="secondary" className="text-xs">
+                          Callback Code: {appliedCallbackResponseCodeFilter}
+                        </Badge>
+                      )}
                       {appliedAccountFilter && (
                         <Badge variant="secondary" className="text-xs">
                           Account: {appliedAccountFilter}
@@ -818,7 +842,7 @@ export default function DisbursementsPage() {
             <CardContent>
               <div className="space-y-4">
                 {/* Disbursement IDs and Date Range Row */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">
                       CMPSS Disbursement ID
@@ -842,6 +866,19 @@ export default function DisbursementsPage() {
                       value={merchantDisbursementIdFilter}
                       onChange={(e) =>
                         handleMerchantDisbursementIdFilter(e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Callback Response Code
+                    </label>
+                    <Input
+                      placeholder="Enter callback response code..."
+                      className="w-full"
+                      value={callbackResponseCodeFilter}
+                      onChange={(e) =>
+                        handleCallbackResponseCodeFilter(e.target.value)
                       }
                     />
                   </div>
@@ -1079,6 +1116,7 @@ export default function DisbursementsPage() {
                     appliedMerchantIdFilter ||
                     appliedMerchantDisbursementIdFilter ||
                     appliedCmpssDisbursementIdFilter ||
+                    appliedCallbackResponseCodeFilter ||
                     appliedAccountFilter ||
                     appliedStartDateFilter ||
                     appliedEndDateFilter
@@ -1091,6 +1129,7 @@ export default function DisbursementsPage() {
                     appliedMerchantIdFilter ||
                     appliedMerchantDisbursementIdFilter ||
                     appliedCmpssDisbursementIdFilter ||
+                    appliedCallbackResponseCodeFilter ||
                     appliedAccountFilter ||
                     appliedStartDateFilter ||
                     appliedEndDateFilter) && (
@@ -1111,7 +1150,6 @@ export default function DisbursementsPage() {
                   <TableHead>Merchant Fee</TableHead>
                   <TableHead>Provider Commission</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Callback Code</TableHead>
                   <TableHead>Provider</TableHead>
                   <TableHead>Method</TableHead>
                   <TableHead>Account</TableHead>
@@ -1184,11 +1222,13 @@ export default function DisbursementsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {getStatusBadge(disbursement.order_status)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          {disbursement.callback_response_code || "N/A"}
+                        <div className="space-y-1">
+                          {getStatusBadge(disbursement.order_status)}
+                          {disbursement.callback_response_code && (
+                            <div className="text-xs text-muted-foreground">
+                              Code: {disbursement.callback_response_code}
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>

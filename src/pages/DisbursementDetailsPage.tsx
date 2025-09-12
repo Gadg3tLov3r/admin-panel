@@ -19,7 +19,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Copy, Download, RotateCcw, CheckCircle, RefreshCw, Undo2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Copy,
+  Download,
+  RotateCcw,
+  CheckCircle,
+  RefreshCw,
+  Undo2,
+} from "lucide-react";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { toast } from "sonner";
 import { Disbursement } from "@/types/disbursement";
@@ -257,7 +265,9 @@ export default function DisbursementDetailsPage() {
       } else if (error.response?.data?.detail) {
         toast.error(`Error: ${error.response.data.detail}`);
       } else {
-        toast.error("Failed to mark disbursement as refunded. Please try again.");
+        toast.error(
+          "Failed to mark disbursement as refunded. Please try again."
+        );
       }
     } finally {
       setRefunding(false);
@@ -411,7 +421,10 @@ export default function DisbursementDetailsPage() {
             )}
 
             {isEligibleForRefund(disbursement) && (
-              <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+              <Dialog
+                open={refundDialogOpen}
+                onOpenChange={setRefundDialogOpen}
+              >
                 <DialogTrigger asChild>
                   <Button
                     variant="destructive"
@@ -425,7 +438,8 @@ export default function DisbursementDetailsPage() {
                   <DialogHeader>
                     <DialogTitle>Mark as Refunded</DialogTitle>
                     <DialogDescription>
-                      This action will mark the disbursement as refunded. Please enter the required password to confirm.
+                      This action will mark the disbursement as refunded. Please
+                      enter the required password to confirm.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
@@ -622,6 +636,16 @@ export default function DisbursementDetailsPage() {
                 </label>
                 <p className="text-sm mt-1">
                   {formatDate(disbursement.created_at)}
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Paid At
+                </label>
+                <p className="text-sm mt-1">
+                  {disbursement.paid_at
+                    ? formatDate(disbursement.paid_at)
+                    : "Not paid"}
                 </p>
               </div>
               <div>

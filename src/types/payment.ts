@@ -14,6 +14,8 @@ export interface Payment {
   failed_url: string | null;
   ipn_url: string;
   order_status: string;
+  callback_response_code: string | null;
+  paid_at: string | null;
   retry_callback_count: number;
   retry_verify_count: number;
   order_metadata: Record<string, any>;

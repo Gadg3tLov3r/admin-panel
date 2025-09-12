@@ -19,7 +19,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Copy, Download, Settings, RotateCcw, CheckCircle, RefreshCw } from "lucide-react";
+import {
+  ArrowLeft,
+  Copy,
+  Download,
+  Settings,
+  RotateCcw,
+  CheckCircle,
+  RefreshCw,
+} from "lucide-react";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { toast } from "sonner";
 import { Payment } from "@/types/payment";
@@ -513,6 +521,35 @@ export default function PaymentDetailsPage() {
                     </Button>
                   )}
                 </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Callback Response Code
+                </label>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="font-mono text-sm">
+                    {payment.callback_response_code || "Not available"}
+                  </p>
+                  {payment.callback_response_code && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        handleCopyToClipboard(payment.callback_response_code!)
+                      }
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Paid At
+                </label>
+                <p className="text-sm mt-1">
+                  {payment.paid_at ? formatDate(payment.paid_at) : "Not paid"}
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
