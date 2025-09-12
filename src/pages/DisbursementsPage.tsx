@@ -218,8 +218,11 @@ export default function DisbursementsPage() {
         ...(appliedCmpssDisbursementIdFilter && {
           cmpss_disbursement_id: appliedCmpssDisbursementIdFilter,
         }),
-        ...(appliedCallbackResponseCodeFilter && {
-          callback_response_code: appliedCallbackResponseCodeFilter,
+        ...(appliedCallbackResponseCodeFilter === "success" && {
+          callback_status: "success",
+        }),
+        ...(appliedCallbackResponseCodeFilter === "failed" && {
+          callback_status: "failed",
         }),
         ...(appliedStartDateFilter && {
           start_date:
@@ -809,7 +812,10 @@ export default function DisbursementsPage() {
                       )}
                       {appliedCallbackResponseCodeFilter && (
                         <Badge variant="secondary" className="text-xs">
-                          Callback Code: {appliedCallbackResponseCodeFilter}
+                          Callback:{" "}
+                          {appliedCallbackResponseCodeFilter === "success"
+                            ? "Success"
+                            : "Failed"}
                         </Badge>
                       )}
                       {appliedAccountFilter && (
@@ -873,14 +879,18 @@ export default function DisbursementsPage() {
                     <label className="text-sm font-medium text-muted-foreground">
                       Callback Response Code
                     </label>
-                    <Input
-                      placeholder="Enter callback response code..."
-                      className="w-full"
+                    <Select
                       value={callbackResponseCodeFilter}
-                      onChange={(e) =>
-                        handleCallbackResponseCodeFilter(e.target.value)
-                      }
-                    />
+                      onValueChange={handleCallbackResponseCodeFilter}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select callback status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="success">Success</SelectItem>
+                        <SelectItem value="failed">Failed</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">
@@ -1226,7 +1236,7 @@ export default function DisbursementsPage() {
                           {getStatusBadge(disbursement.order_status)}
                           {disbursement.callback_response_code && (
                             <div className="text-xs text-muted-foreground">
-                              Code: {disbursement.callback_response_code}
+                              {disbursement.callback_response_code}
                             </div>
                           )}
                         </div>
@@ -1234,9 +1244,6 @@ export default function DisbursementsPage() {
                       <TableCell>
                         <div className="text-sm font-medium">
                           {disbursement.provider_name}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Retries: {disbursement.retry_verify_count}
                         </div>
                       </TableCell>
                       <TableCell>

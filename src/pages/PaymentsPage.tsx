@@ -211,8 +211,11 @@ export default function PaymentsPage() {
         ...(appliedCmpssPaymentIdFilter && {
           cmpss_payment_id: appliedCmpssPaymentIdFilter,
         }),
-        ...(appliedCallbackResponseCodeFilter && {
-          callback_response_code: appliedCallbackResponseCodeFilter,
+        ...(appliedCallbackResponseCodeFilter === "success" && {
+          callback_status: "success",
+        }),
+        ...(appliedCallbackResponseCodeFilter === "failed" && {
+          callback_status: "failed",
         }),
         ...(appliedStartDateFilter && {
           start_date:
@@ -769,7 +772,10 @@ export default function PaymentsPage() {
                       )}
                       {appliedCallbackResponseCodeFilter && (
                         <Badge variant="secondary" className="text-xs">
-                          Callback Code: {appliedCallbackResponseCodeFilter}
+                          Callback:{" "}
+                          {appliedCallbackResponseCodeFilter === "success"
+                            ? "Success"
+                            : "Failed"}
                         </Badge>
                       )}
                       {appliedStartDateFilter && (
@@ -828,14 +834,18 @@ export default function PaymentsPage() {
                     <label className="text-sm font-medium text-muted-foreground">
                       Callback Response Code
                     </label>
-                    <Input
-                      placeholder="Enter callback response code..."
-                      className="w-full"
+                    <Select
                       value={callbackResponseCodeFilter}
-                      onChange={(e) =>
-                        handleCallbackResponseCodeFilter(e.target.value)
-                      }
-                    />
+                      onValueChange={handleCallbackResponseCodeFilter}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select callback status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="success">Success</SelectItem>
+                        <SelectItem value="failed">Failed</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">
@@ -1173,7 +1183,7 @@ export default function PaymentsPage() {
                         {getStatusBadge(payment.order_status)}
                         {payment.callback_response_code && (
                           <div className="text-xs text-muted-foreground">
-                            Code: {payment.callback_response_code}
+                            {payment.callback_response_code}
                           </div>
                         )}
                       </div>
@@ -1181,9 +1191,6 @@ export default function PaymentsPage() {
                     <TableCell>
                       <div className="text-sm font-medium">
                         {payment.provider_name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Retries: {payment.retry_verify_count}
                       </div>
                     </TableCell>
                     <TableCell>
