@@ -12,6 +12,7 @@ import {
   SquareTerminal,
   CreditCard,
   Wallet,
+  DollarSign,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -69,6 +70,28 @@ const data = {
         {
           title: "All Disbursements",
           url: "/disbursements",
+        },
+      ],
+    },
+    {
+      title: "Merchant Settlements",
+      url: "/settlements",
+      icon: DollarSign,
+      items: [
+        {
+          title: "All Merchant Settlements",
+          url: "/settlements",
+        },
+      ],
+    },
+    {
+      title: "Provider Settlements",
+      url: "/provider-settlements",
+      icon: DollarSign,
+      items: [
+        {
+          title: "All Provider Settlements",
+          url: "/provider-settlements",
         },
       ],
     },
