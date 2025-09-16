@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Card,
@@ -9,6 +9,24 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -23,6 +41,7 @@ import {
   ChevronRight,
   RefreshCw,
   Eye,
+  Plus,
 } from "lucide-react";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import { toast } from "sonner";
@@ -48,6 +67,26 @@ export default function MerchantSettlementsPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
   const [permissionError, setPermissionError] = useState<string | null>(null);
+
+  // Merchant methods data for dropdown
+  const [merchants, setMerchants] = useState<
+    Array<{ id: number; name: string }>
+  >([]);
+
+  // Currencies data for dropdown
+  const [currencies, setCurrencies] = useState<
+    Array<{ id: number; name: string; sign: string; country: string }>
+  >([]);
+
+  // Create settlement dialog state
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    merchant_id: "",
+    fiat_amount: "",
+    currency_name: "",
+    note: "",
+  });
 
   // Fetch settlements data
   const fetchSettlements = async () => {
@@ -109,6 +148,36 @@ export default function MerchantSettlementsPage() {
   useEffect(() => {
     fetchSettlements();
   }, [currentPage, perPage]);
+
+  // Fetch merchant methods data
+  const fetchMerchants = useCallback(async () => {
+    try {
+      const response = await api.get("/merchant-methods");
+      const data = response.data.data || [];
+      setMerchants(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error fetching merchant methods:", error);
+      setMerchants([]);
+    }
+  }, []);
+
+  // Fetch currencies data
+  const fetchCurrencies = useCallback(async () => {
+    try {
+      const response = await api.get("/currencies");
+      const data = response.data.currencies || [];
+      setCurrencies(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error fetching currencies:", error);
+      setCurrencies([]);
+    }
+  }, []);
+
+  // Load merchant methods and currencies on component mount
+  useEffect(() => {
+    fetchMerchants();
+    fetchCurrencies();
+  }, [fetchMerchants, fetchCurrencies]);
 
   const handleRefresh = () => {
     const confirmed = window.confirm(
@@ -204,6 +273,53 @@ export default function MerchantSettlementsPage() {
     return `${currency} ${parseFloat(amount).toLocaleString()}`;
   };
 
+  // Create settlement function
+  const handleCreateSettlement = async () => {
+    if (
+      !createForm.merchant_id ||
+      !createForm.fiat_amount ||
+      !createForm.currency_name
+    ) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    setCreateLoading(true);
+    try {
+      await api.post("/merchant-settlements", {
+        merchant_method_id: parseInt(createForm.merchant_id),
+        fiat_amount: parseFloat(createForm.fiat_amount),
+        currency_name: createForm.currency_name,
+        note: createForm.note || undefined,
+      });
+
+      toast.success("Settlement created successfully");
+      setIsCreateDialogOpen(false);
+      setCreateForm({
+        merchant_id: "",
+        fiat_amount: "",
+        currency_name: "",
+        note: "",
+      });
+
+      // Refresh the settlements list
+      await fetchSettlements();
+    } catch (error: any) {
+      console.error("Error creating settlement:", error);
+      if (error.response?.status === 403) {
+        toast.error(
+          "Access denied: Insufficient permissions to create settlements"
+        );
+      } else {
+        toast.error(
+          error.response?.data?.message || "Failed to create settlement"
+        );
+      }
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
   // Format date
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -233,6 +349,136 @@ export default function MerchantSettlementsPage() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              <Dialog
+                open={isCreateDialogOpen}
+                onOpenChange={setIsCreateDialogOpen}
+              >
+                <DialogTrigger asChild>
+                  <Button variant="default">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Settlement
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Create New Settlement</DialogTitle>
+                    <DialogDescription>
+                      Create a new merchant settlement transaction.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="merchant_id" className="text-right">
+                        Merchant Method *
+                      </Label>
+                      <div className="col-span-3">
+                        <Select
+                          value={createForm.merchant_id}
+                          onValueChange={(value) =>
+                            setCreateForm({
+                              ...createForm,
+                              merchant_id: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select merchant method" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {merchants.length === 0 ? (
+                              <SelectItem value="no-data" disabled>
+                                No merchant methods available
+                              </SelectItem>
+                            ) : (
+                              merchants.map((merchant) => (
+                                <SelectItem
+                                  key={merchant.id}
+                                  value={merchant.id.toString()}
+                                >
+                                  {merchant.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="fiat_amount" className="text-right">
+                        Amount *
+                      </Label>
+                      <Input
+                        id="fiat_amount"
+                        type="number"
+                        step="0.01"
+                        value={createForm.fiat_amount}
+                        onChange={(e) =>
+                          setCreateForm({
+                            ...createForm,
+                            fiat_amount: e.target.value,
+                          })
+                        }
+                        className="col-span-3"
+                        placeholder="Enter amount"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="currency_name" className="text-right">
+                        Currency
+                      </Label>
+                      <Select
+                        value={createForm.currency_name}
+                        onValueChange={(value) =>
+                          setCreateForm({ ...createForm, currency_name: value })
+                        }
+                      >
+                        <SelectTrigger className="col-span-3">
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {currencies.map((currency) => (
+                            <SelectItem key={currency.id} value={currency.name}>
+                              {currency.name} ({currency.sign})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="note" className="text-right">
+                        Note
+                      </Label>
+                      <textarea
+                        id="note"
+                        value={createForm.note}
+                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                          setCreateForm({ ...createForm, note: e.target.value })
+                        }
+                        className="col-span-3 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="Optional note for this settlement"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsCreateDialogOpen(false)}
+                      disabled={createLoading}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleCreateSettlement}
+                      disabled={createLoading}
+                    >
+                      {createLoading ? "Creating..." : "Create Settlement"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
               <Button
                 variant="outline"
                 onClick={handleRefresh}
