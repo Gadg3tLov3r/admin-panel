@@ -44,6 +44,7 @@ interface SettlementDetail extends Settlement {
   before_balance?: string;
   after_balance?: string;
   note?: string;
+  tronscan_url?: string;
   updated_by?: string;
 }
 
@@ -57,6 +58,7 @@ export default function SettlementDetailPage() {
     status: "",
     note: "",
     usdt_amount: "",
+    tronscan_url: "",
   });
   const [saveLoading, setSaveLoading] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -75,6 +77,7 @@ export default function SettlementDetailPage() {
         status: settlementData.status,
         note: settlementData.note || "",
         usdt_amount: settlementData.usdt_amount || "",
+        tronscan_url: settlementData.tronscan_url || "",
       });
     } catch (error: any) {
       console.error("Error fetching settlement details:", error);
@@ -121,25 +124,22 @@ export default function SettlementDetailPage() {
   const handleSaveChanges = async () => {
     if (!settlement) return;
 
-    if (!editForm.usdt_amount) {
-      toast.error("Please enter a USDT amount");
-      return;
-    }
-
     setSaveLoading(true);
     try {
-      await api.post(`/settlements/${settlement.id}/approve`, {
+      await api.patch(`/settlements/${settlement.id}/approve`, {
         note: editForm.note,
         usdt_amount: editForm.usdt_amount
           ? parseFloat(editForm.usdt_amount)
           : undefined,
+        tronscan_url: editForm.tronscan_url || undefined,
       });
 
       setSettlement({
         ...settlement,
-        status: "completed",
+        status: "paid",
         note: editForm.note,
         usdt_amount: editForm.usdt_amount || settlement.usdt_amount,
+        tronscan_url: editForm.tronscan_url || settlement.tronscan_url,
         updated_at: new Date().toISOString(),
       });
 
@@ -166,6 +166,7 @@ export default function SettlementDetailPage() {
       status: settlement?.status || "",
       note: settlement?.note || "",
       usdt_amount: settlement?.usdt_amount || "",
+      tronscan_url: settlement?.tronscan_url || "",
     });
     setIsEditDialogOpen(false);
   };
@@ -183,10 +184,10 @@ export default function SettlementDetailPage() {
         icon: <RefreshCw className="w-4 h-4 animate-spin" />,
         label: "Processing",
       },
-      completed: {
+      paid: {
         color: "bg-green-100 text-green-800",
         icon: <CheckCircle className="w-4 h-4" />,
-        label: "Completed",
+        label: "Paid",
       },
       failed: {
         color: "bg-red-100 text-red-800",
@@ -413,6 +414,34 @@ export default function SettlementDetailPage() {
                 </div>
               </div>
 
+              {settlement.tronscan_url && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">
+                      Tronscan URL
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={settlement.tronscan_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline text-sm break-all"
+                      >
+                        View Transaction
+                      </a>
+                      <button
+                        onClick={() =>
+                          handleCopyToClipboard(settlement.tronscan_url!)
+                        }
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {settlement.commission_amount && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -493,7 +522,7 @@ export default function SettlementDetailPage() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="usdt_amount" className="text-right">
-                  USDT Amount *
+                  USDT Amount
                 </Label>
                 <Input
                   id="usdt_amount"
@@ -504,7 +533,22 @@ export default function SettlementDetailPage() {
                     setEditForm({ ...editForm, usdt_amount: e.target.value })
                   }
                   className="col-span-3"
-                  placeholder="Enter USDT amount"
+                  placeholder="Enter USDT amount (optional)"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="tronscan_url" className="text-right">
+                  Tronscan URL
+                </Label>
+                <Input
+                  id="tronscan_url"
+                  type="url"
+                  value={editForm.tronscan_url}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, tronscan_url: e.target.value })
+                  }
+                  className="col-span-3"
+                  placeholder="Enter Tronscan URL (optional)"
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
@@ -535,7 +579,7 @@ export default function SettlementDetailPage() {
               <Button
                 type="button"
                 onClick={handleSaveChanges}
-                disabled={saveLoading || !editForm.usdt_amount}
+                disabled={saveLoading}
               >
                 {saveLoading ? "Approving..." : "Approve Settlement"}
               </Button>

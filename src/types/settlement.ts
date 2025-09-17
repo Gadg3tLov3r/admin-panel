@@ -6,6 +6,7 @@ export interface Settlement {
   fiat_amount: string;
   usdt_amount: string;
   status: string;
+  tronscan_url?: string;
   created_at: string;
   updated_at: string;
 }
