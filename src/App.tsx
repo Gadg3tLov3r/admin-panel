@@ -15,6 +15,7 @@ import DisbursementsPage from "@/pages/DisbursementsPage";
 import DisbursementDetailsPage from "@/pages/DisbursementDetailsPage";
 import MerchantSettlementsPage from "@/pages/MerchantSettlementsPage";
 import ProviderSettlementsPage from "@/pages/ProviderSettlementsPage";
+import ProviderSettlementDetailsPage from "@/pages/ProviderSettlementDetailsPage";
 import ChangePasswordPage from "@/pages/ChangePasswordPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import SettlementDetailPage from "./pages/SettlementDetailsPage";
@@ -87,6 +88,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <ProviderSettlementsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/provider-settlements/:id"
+              element={
+                <ProtectedRoute>
+                  <ProviderSettlementDetailsPage />
                 </ProtectedRoute>
               }
             />
