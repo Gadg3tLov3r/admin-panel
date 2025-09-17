@@ -17,6 +17,7 @@ import MerchantSettlementsPage from "@/pages/MerchantSettlementsPage";
 import ProviderSettlementsPage from "@/pages/ProviderSettlementsPage";
 import ChangePasswordPage from "@/pages/ChangePasswordPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import SettlementDetailPage from "./pages/SettlementDetailsPage";
 
 export default function App() {
   return (
@@ -70,6 +71,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <MerchantSettlementsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settlements/:id"
+              element={
+                <ProtectedRoute>
+                  <SettlementDetailPage />
                 </ProtectedRoute>
               }
             />
