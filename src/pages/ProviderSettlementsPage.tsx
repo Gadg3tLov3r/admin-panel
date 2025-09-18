@@ -543,6 +543,7 @@ export default function ProviderSettlementsPage() {
                           </div>
                           {selectedProvider &&
                             createForm.fiat_amount &&
+                            !isNaN(parseFloat(createForm.fiat_amount)) &&
                             parseFloat(createForm.fiat_amount) >
                               parseFloat(selectedProvider.balance) && (
                               <p className="text-xs text-destructive">
@@ -613,8 +614,12 @@ export default function ProviderSettlementsPage() {
                           !createForm.fiat_amount ||
                           (selectedProvider &&
                             createForm.fiat_amount &&
+                            !isNaN(parseFloat(createForm.fiat_amount)) &&
                             parseFloat(createForm.fiat_amount) >
-                              parseFloat(selectedProvider.balance))
+                              parseFloat(selectedProvider.balance)) ||
+                          (createForm.fiat_amount &&
+                            isNaN(parseFloat(createForm.fiat_amount))) ||
+                          createForm.fiat_amount === ""
                         }
                         className="px-6"
                       >

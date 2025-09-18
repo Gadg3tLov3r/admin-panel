@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -48,22 +47,11 @@ import { toast } from "sonner";
 import { Settlement, SettlementsResponse } from "@/types/settlement";
 import api from "@/lib/auth";
 
-// Helper function to get today's date at 00:00 UTC
-const getTodayUTC = () => {
-  const today = new Date();
-  const utcToday = new Date(
-    today.getTime() + today.getTimezoneOffset() * 60000
-  );
-  utcToday.setUTCHours(0, 0, 0, 0);
-  return utcToday;
-};
-
 export default function MerchantSettlementsPage() {
-  const navigate = useNavigate();
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [perPage, setPerPage] = useState(20);
+  const [perPage] = useState(20);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
   const [permissionError, setPermissionError] = useState<string | null>(null);
@@ -506,6 +494,7 @@ export default function MerchantSettlementsPage() {
                           </div>
                           {selectedMerchant &&
                             createForm.fiat_amount &&
+                            !isNaN(parseFloat(createForm.fiat_amount)) &&
                             parseFloat(createForm.fiat_amount) >
                               parseFloat(selectedMerchant.balance) && (
                               <p className="text-xs text-destructive">
@@ -576,8 +565,12 @@ export default function MerchantSettlementsPage() {
                           !createForm.fiat_amount ||
                           (selectedMerchant &&
                             createForm.fiat_amount &&
+                            !isNaN(parseFloat(createForm.fiat_amount)) &&
                             parseFloat(createForm.fiat_amount) >
-                              parseFloat(selectedMerchant.balance))
+                              parseFloat(selectedMerchant.balance)) ||
+                          (createForm.fiat_amount &&
+                            isNaN(parseFloat(createForm.fiat_amount))) ||
+                          createForm.fiat_amount === ""
                         }
                         className="px-6"
                       >
