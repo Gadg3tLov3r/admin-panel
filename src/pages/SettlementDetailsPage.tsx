@@ -62,6 +62,7 @@ export default function SettlementDetailPage() {
   });
   const [saveLoading, setSaveLoading] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
 
   // Fetch settlement details
   const fetchSettlementDetails = async () => {
@@ -121,6 +122,10 @@ export default function SettlementDetailPage() {
     setIsEditDialogOpen(true);
   };
 
+  const handleReject = () => {
+    setIsRejectDialogOpen(true);
+  };
+
   const handleSaveChanges = async () => {
     if (!settlement) return;
 
@@ -169,6 +174,50 @@ export default function SettlementDetailPage() {
       tronscan_url: settlement?.tronscan_url || "",
     });
     setIsEditDialogOpen(false);
+  };
+
+  const handleRejectSettlement = async () => {
+    if (!settlement) return;
+
+    setSaveLoading(true);
+    try {
+      await api.patch(`/settlements/${settlement.id}/reject`, {
+        reason: editForm.note,
+      });
+
+      setSettlement({
+        ...settlement,
+        status: "failed",
+        note: editForm.note,
+        updated_at: new Date().toISOString(),
+      });
+
+      setIsRejectDialogOpen(false);
+      toast.success("Settlement rejected successfully");
+    } catch (error: any) {
+      console.error("Error rejecting settlement:", error);
+      if (error.response?.status === 403) {
+        toast.error(
+          "Access denied: You don't have permission to reject settlements"
+        );
+      } else {
+        toast.error(
+          error.response?.data?.message || "Failed to reject settlement"
+        );
+      }
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const handleCancelReject = () => {
+    setEditForm({
+      status: settlement?.status || "",
+      note: settlement?.note || "",
+      usdt_amount: settlement?.usdt_amount || "",
+      tronscan_url: settlement?.tronscan_url || "",
+    });
+    setIsRejectDialogOpen(false);
   };
 
   // Get status badge color and icon
@@ -303,10 +352,16 @@ export default function SettlementDetailPage() {
               Refresh
             </Button>
             {settlement.status === "pending" && (
-              <Button onClick={handleApprove}>
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Approve Settlement
-              </Button>
+              <>
+                <Button onClick={handleApprove} variant="default">
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Approve Settlement
+                </Button>
+                <Button onClick={handleReject} variant="destructive">
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Reject Settlement
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -582,6 +637,54 @@ export default function SettlementDetailPage() {
                 disabled={saveLoading}
               >
                 {saveLoading ? "Approving..." : "Approve Settlement"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reject Dialog */}
+        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Reject Settlement</DialogTitle>
+              <DialogDescription>
+                Reject settlement #{settlement.id} and provide a reason
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="reject_note" className="text-right">
+                  Reason *
+                </Label>
+                <textarea
+                  id="reject_note"
+                  value={editForm.note}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, note: e.target.value })
+                  }
+                  className="col-span-3 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="Please provide a reason for rejecting this settlement"
+                  rows={3}
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancelReject}
+                disabled={saveLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleRejectSettlement}
+                disabled={saveLoading || !editForm.note.trim()}
+              >
+                {saveLoading ? "Rejecting..." : "Reject Settlement"}
               </Button>
             </DialogFooter>
           </DialogContent>
