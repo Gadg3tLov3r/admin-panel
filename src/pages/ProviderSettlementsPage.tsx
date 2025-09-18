@@ -64,14 +64,15 @@ export default function ProviderSettlementsPage() {
   const [pendingCount, setPendingCount] = useState(0);
   const [permissionError, setPermissionError] = useState<string | null>(null);
 
-  // Currencies data for dropdown
-  const [currencies, setCurrencies] = useState<
-    Array<{ id: number; name: string; sign: string; country: string }>
-  >([]);
-
   // Provider methods data for dropdown
   const [providers, setProviders] = useState<
-    Array<{ id: number; name: string }>
+    Array<{
+      id: number;
+      name: string;
+      currency_name: string;
+      currency_sign: string;
+      balance: string;
+    }>
   >([]);
 
   // Create settlement dialog state
@@ -80,7 +81,6 @@ export default function ProviderSettlementsPage() {
   const [createForm, setCreateForm] = useState({
     provider_id: "",
     fiat_amount: "",
-    currency_code: "",
     note: "",
   });
 
@@ -160,16 +160,6 @@ export default function ProviderSettlementsPage() {
     fetchSettlements();
   }, [currentPage, perPage]);
 
-  // Fetch currencies data
-  const fetchCurrencies = useCallback(async () => {
-    try {
-      const response = await api.get("/currencies");
-      setCurrencies(response.data.currencies || []);
-    } catch (error) {
-      console.error("Error fetching currencies:", error);
-    }
-  }, []);
-
   // Fetch provider methods data
   const fetchProviders = useCallback(async () => {
     try {
@@ -182,11 +172,10 @@ export default function ProviderSettlementsPage() {
     }
   }, []);
 
-  // Load currencies and provider methods on component mount
+  // Load provider methods on component mount
   useEffect(() => {
-    fetchCurrencies();
     fetchProviders();
-  }, [fetchCurrencies, fetchProviders]);
+  }, [fetchProviders]);
 
   const handleRefresh = () => {
     const confirmed = window.confirm(
@@ -301,14 +290,27 @@ export default function ProviderSettlementsPage() {
     return parseFloat(balance).toLocaleString();
   };
 
+  // Get selected provider method
+  const selectedProvider = providers.find(
+    (p) => p.id.toString() === createForm.provider_id
+  );
+
   // Create settlement function
   const handleCreateSettlement = async () => {
-    if (
-      !createForm.provider_id ||
-      !createForm.fiat_amount ||
-      !createForm.currency_code
-    ) {
+    if (!createForm.provider_id || !createForm.fiat_amount) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    const amount = parseFloat(createForm.fiat_amount);
+    const balance = selectedProvider ? parseFloat(selectedProvider.balance) : 0;
+
+    if (amount > balance) {
+      toast.error(
+        `Amount cannot exceed available balance of ${
+          selectedProvider?.currency_sign
+        } ${balance.toLocaleString()}`
+      );
       return;
     }
 
@@ -316,8 +318,8 @@ export default function ProviderSettlementsPage() {
     try {
       await api.post("/provider-settlements", {
         provider_method_id: parseInt(createForm.provider_id),
-        fiat_amount: parseFloat(createForm.fiat_amount),
-        currency_code: createForm.currency_code,
+        fiat_amount: amount,
+        currency_code: selectedProvider?.currency_name,
         note: createForm.note || undefined,
       });
 
@@ -326,7 +328,6 @@ export default function ProviderSettlementsPage() {
       setCreateForm({
         provider_id: "",
         fiat_amount: "",
-        currency_code: "",
         note: "",
       });
 
@@ -394,117 +395,242 @@ export default function ProviderSettlementsPage() {
                     Create Settlement
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Create New Settlement</DialogTitle>
-                    <DialogDescription>
-                      Create a new provider settlement transaction.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="provider_id" className="text-right">
-                        Provider Method *
-                      </Label>
-                      <div className="col-span-3">
-                        <Select
-                          value={createForm.provider_id}
-                          onValueChange={(value) =>
-                            setCreateForm({
-                              ...createForm,
-                              provider_id: value,
-                            })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select provider method" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {providers.map((provider) => (
-                              <SelectItem
-                                key={provider.id}
-                                value={provider.id.toString()}
-                              >
-                                {provider.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                        <Plus className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <DialogTitle className="text-xl">
+                          Create New Settlement
+                        </DialogTitle>
+                        <DialogDescription className="text-base">
+                          Create a new provider settlement transaction
+                        </DialogDescription>
                       </div>
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="fiat_amount" className="text-right">
-                        Amount *
-                      </Label>
-                      <Input
-                        id="fiat_amount"
-                        type="number"
-                        step="0.01"
-                        value={createForm.fiat_amount}
-                        onChange={(e) =>
-                          setCreateForm({
-                            ...createForm,
-                            fiat_amount: e.target.value,
-                          })
-                        }
-                        className="col-span-3"
-                        placeholder="Enter amount"
-                      />
+                  </DialogHeader>
+
+                  <div className="space-y-6 py-6">
+                    {/* Settlement Details Section */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 pb-2 border-b border-border">
+                        <div className="w-2 h-2 bg-primary rounded-full"></div>
+                        <h3 className="font-semibold text-sm text-foreground">
+                          Settlement Details
+                        </h3>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="provider_id"
+                            className="text-sm font-medium flex items-center gap-1"
+                          >
+                            Provider Method{" "}
+                            <span className="text-destructive">*</span>
+                          </Label>
+                          <Select
+                            value={createForm.provider_id}
+                            onValueChange={(value) =>
+                              setCreateForm({
+                                ...createForm,
+                                provider_id: value,
+                              })
+                            }
+                          >
+                            <SelectTrigger className="h-11 w-full">
+                              <SelectValue placeholder="Select provider method" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {providers.length === 0 ? (
+                                <SelectItem value="no-data" disabled>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-muted-foreground rounded-full"></div>
+                                    No provider methods available
+                                  </div>
+                                </SelectItem>
+                              ) : (
+                                providers.map((provider) => (
+                                  <SelectItem
+                                    key={provider.id}
+                                    value={provider.id.toString()}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 bg-primary rounded-full"></div>
+                                      <span className="font-medium">
+                                        {provider.name}
+                                      </span>
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-xs"
+                                      >
+                                        {provider.currency_sign}
+                                      </Badge>
+                                    </div>
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Selected provider info */}
+                        {selectedProvider && (
+                          <div className="p-3 bg-muted/50 rounded-lg border">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-sm font-medium">
+                                  Available Balance
+                                </span>
+                              </div>
+                              <div className="text-sm font-semibold">
+                                {selectedProvider.currency_sign}{" "}
+                                {parseFloat(
+                                  selectedProvider.balance
+                                ).toLocaleString()}
+                              </div>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {selectedProvider.currency_name}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="fiat_amount"
+                            className="text-sm font-medium flex items-center gap-1"
+                          >
+                            Amount <span className="text-destructive">*</span>
+                            {selectedProvider && (
+                              <span className="text-xs text-muted-foreground">
+                                (Max: {selectedProvider.currency_sign}{" "}
+                                {parseFloat(
+                                  selectedProvider.balance
+                                ).toLocaleString()}
+                                )
+                              </span>
+                            )}
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              id="fiat_amount"
+                              type="number"
+                              step="0.01"
+                              value={createForm.fiat_amount}
+                              onChange={(e) =>
+                                setCreateForm({
+                                  ...createForm,
+                                  fiat_amount: e.target.value,
+                                })
+                              }
+                              className="h-11 pr-12"
+                              placeholder="0.00"
+                              max={
+                                selectedProvider
+                                  ? selectedProvider.balance
+                                  : undefined
+                              }
+                            />
+                            {selectedProvider && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
+                                {selectedProvider.currency_sign}
+                              </div>
+                            )}
+                          </div>
+                          {selectedProvider &&
+                            createForm.fiat_amount &&
+                            parseFloat(createForm.fiat_amount) >
+                              parseFloat(selectedProvider.balance) && (
+                              <p className="text-xs text-destructive">
+                                Amount exceeds available balance
+                              </p>
+                            )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="currency_code" className="text-right">
-                        Currency
-                      </Label>
-                      <Select
-                        value={createForm.currency_code}
-                        onValueChange={(value) =>
-                          setCreateForm({ ...createForm, currency_code: value })
-                        }
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select currency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {currencies.map((currency) => (
-                            <SelectItem key={currency.id} value={currency.name}>
-                              {currency.name} ({currency.sign})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="note" className="text-right">
-                        Note
-                      </Label>
-                      <textarea
-                        id="note"
-                        value={createForm.note}
-                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                          setCreateForm({ ...createForm, note: e.target.value })
-                        }
-                        className="col-span-3 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        placeholder="Optional note for this settlement"
-                        rows={3}
-                      />
+
+                    {/* Additional Information Section */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 pb-2 border-b border-border">
+                        <div className="w-2 h-2 bg-muted-foreground rounded-full"></div>
+                        <h3 className="font-semibold text-sm text-foreground">
+                          Additional Information
+                        </h3>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="note" className="text-sm font-medium">
+                          Note{" "}
+                          <span className="text-muted-foreground">
+                            (Optional)
+                          </span>
+                        </Label>
+                        <textarea
+                          id="note"
+                          value={createForm.note}
+                          onChange={(
+                            e: React.ChangeEvent<HTMLTextAreaElement>
+                          ) =>
+                            setCreateForm({
+                              ...createForm,
+                              note: e.target.value,
+                            })
+                          }
+                          className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                          placeholder="Add any additional notes or comments for this settlement..."
+                          rows={4}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {createForm.note.length}/500 characters
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsCreateDialogOpen(false)}
-                      disabled={createLoading}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={handleCreateSettlement}
-                      disabled={createLoading}
-                    >
-                      {createLoading ? "Creating..." : "Create Settlement"}
-                    </Button>
+                  <DialogFooter className="flex items-center justify-between pt-6 border-t border-border">
+                    <div className="text-xs text-muted-foreground">
+                      * Required fields
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsCreateDialogOpen(false)}
+                        disabled={createLoading}
+                        className="px-6"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleCreateSettlement}
+                        disabled={
+                          createLoading ||
+                          !createForm.provider_id ||
+                          !createForm.fiat_amount ||
+                          (selectedProvider &&
+                            createForm.fiat_amount &&
+                            parseFloat(createForm.fiat_amount) >
+                              parseFloat(selectedProvider.balance))
+                        }
+                        className="px-6"
+                      >
+                        {createLoading ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                            Creating...
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Plus className="w-4 h-4" />
+                            Create Settlement
+                          </div>
+                        )}
+                      </Button>
+                    </div>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>

@@ -70,12 +70,13 @@ export default function MerchantSettlementsPage() {
 
   // Merchant methods data for dropdown
   const [merchants, setMerchants] = useState<
-    Array<{ id: number; name: string }>
-  >([]);
-
-  // Currencies data for dropdown
-  const [currencies, setCurrencies] = useState<
-    Array<{ id: number; name: string; sign: string; country: string }>
+    Array<{
+      id: number;
+      name: string;
+      currency_name: string;
+      currency_sign: string;
+      balance: string;
+    }>
   >([]);
 
   // Create settlement dialog state
@@ -84,7 +85,6 @@ export default function MerchantSettlementsPage() {
   const [createForm, setCreateForm] = useState({
     merchant_id: "",
     fiat_amount: "",
-    currency_name: "",
     note: "",
   });
 
@@ -161,23 +161,10 @@ export default function MerchantSettlementsPage() {
     }
   }, []);
 
-  // Fetch currencies data
-  const fetchCurrencies = useCallback(async () => {
-    try {
-      const response = await api.get("/currencies");
-      const data = response.data.currencies || [];
-      setCurrencies(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Error fetching currencies:", error);
-      setCurrencies([]);
-    }
-  }, []);
-
-  // Load merchant methods and currencies on component mount
+  // Load merchant methods on component mount
   useEffect(() => {
     fetchMerchants();
-    fetchCurrencies();
-  }, [fetchMerchants, fetchCurrencies]);
+  }, [fetchMerchants]);
 
   const handleRefresh = () => {
     const confirmed = window.confirm(
@@ -273,14 +260,27 @@ export default function MerchantSettlementsPage() {
     return `${currency} ${parseFloat(amount).toLocaleString()}`;
   };
 
+  // Get selected merchant method
+  const selectedMerchant = merchants.find(
+    (m) => m.id.toString() === createForm.merchant_id
+  );
+
   // Create settlement function
   const handleCreateSettlement = async () => {
-    if (
-      !createForm.merchant_id ||
-      !createForm.fiat_amount ||
-      !createForm.currency_name
-    ) {
+    if (!createForm.merchant_id || !createForm.fiat_amount) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    const amount = parseFloat(createForm.fiat_amount);
+    const balance = selectedMerchant ? parseFloat(selectedMerchant.balance) : 0;
+
+    if (amount > balance) {
+      toast.error(
+        `Amount cannot exceed available balance of ${
+          selectedMerchant?.currency_sign
+        } ${balance.toLocaleString()}`
+      );
       return;
     }
 
@@ -288,8 +288,8 @@ export default function MerchantSettlementsPage() {
     try {
       await api.post("/merchant-settlements", {
         merchant_method_id: parseInt(createForm.merchant_id),
-        fiat_amount: parseFloat(createForm.fiat_amount),
-        currency_name: createForm.currency_name,
+        fiat_amount: amount,
+        currency_name: selectedMerchant?.currency_name,
         note: createForm.note || undefined,
       });
 
@@ -298,7 +298,6 @@ export default function MerchantSettlementsPage() {
       setCreateForm({
         merchant_id: "",
         fiat_amount: "",
-        currency_name: "",
         note: "",
       });
 
@@ -359,123 +358,242 @@ export default function MerchantSettlementsPage() {
                     Create Settlement
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Create New Settlement</DialogTitle>
-                    <DialogDescription>
-                      Create a new merchant settlement transaction.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="merchant_id" className="text-right">
-                        Merchant Method *
-                      </Label>
-                      <div className="col-span-3">
-                        <Select
-                          value={createForm.merchant_id}
-                          onValueChange={(value) =>
-                            setCreateForm({
-                              ...createForm,
-                              merchant_id: value,
-                            })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select merchant method" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {merchants.length === 0 ? (
-                              <SelectItem value="no-data" disabled>
-                                No merchant methods available
-                              </SelectItem>
-                            ) : (
-                              merchants.map((merchant) => (
-                                <SelectItem
-                                  key={merchant.id}
-                                  value={merchant.id.toString()}
-                                >
-                                  {merchant.name}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                        <Plus className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <DialogTitle className="text-xl">
+                          Create New Settlement
+                        </DialogTitle>
+                        <DialogDescription className="text-base">
+                          Create a new merchant settlement transaction
+                        </DialogDescription>
                       </div>
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="fiat_amount" className="text-right">
-                        Amount *
-                      </Label>
-                      <Input
-                        id="fiat_amount"
-                        type="number"
-                        step="0.01"
-                        value={createForm.fiat_amount}
-                        onChange={(e) =>
-                          setCreateForm({
-                            ...createForm,
-                            fiat_amount: e.target.value,
-                          })
-                        }
-                        className="col-span-3"
-                        placeholder="Enter amount"
-                      />
+                  </DialogHeader>
+
+                  <div className="space-y-6 py-6">
+                    {/* Settlement Details Section */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 pb-2 border-b border-border">
+                        <div className="w-2 h-2 bg-primary rounded-full"></div>
+                        <h3 className="font-semibold text-sm text-foreground">
+                          Settlement Details
+                        </h3>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="merchant_id"
+                            className="text-sm font-medium flex items-center gap-1"
+                          >
+                            Merchant Method{" "}
+                            <span className="text-destructive">*</span>
+                          </Label>
+                          <Select
+                            value={createForm.merchant_id}
+                            onValueChange={(value) =>
+                              setCreateForm({
+                                ...createForm,
+                                merchant_id: value,
+                              })
+                            }
+                          >
+                            <SelectTrigger className="h-11 w-full">
+                              <SelectValue placeholder="Select merchant method" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {merchants.length === 0 ? (
+                                <SelectItem value="no-data" disabled>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-muted-foreground rounded-full"></div>
+                                    No merchant methods available
+                                  </div>
+                                </SelectItem>
+                              ) : (
+                                merchants.map((merchant) => (
+                                  <SelectItem
+                                    key={merchant.id}
+                                    value={merchant.id.toString()}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 bg-primary rounded-full"></div>
+                                      <span className="font-medium">
+                                        {merchant.name}
+                                      </span>
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-xs"
+                                      >
+                                        {merchant.currency_sign}
+                                      </Badge>
+                                    </div>
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Selected merchant info */}
+                        {selectedMerchant && (
+                          <div className="p-3 bg-muted/50 rounded-lg border">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-sm font-medium">
+                                  Available Balance
+                                </span>
+                              </div>
+                              <div className="text-sm font-semibold">
+                                {selectedMerchant.currency_sign}{" "}
+                                {parseFloat(
+                                  selectedMerchant.balance
+                                ).toLocaleString()}
+                              </div>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {selectedMerchant.currency_name}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="fiat_amount"
+                            className="text-sm font-medium flex items-center gap-1"
+                          >
+                            Amount <span className="text-destructive">*</span>
+                            {selectedMerchant && (
+                              <span className="text-xs text-muted-foreground">
+                                (Max: {selectedMerchant.currency_sign}{" "}
+                                {parseFloat(
+                                  selectedMerchant.balance
+                                ).toLocaleString()}
+                                )
+                              </span>
+                            )}
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              id="fiat_amount"
+                              type="number"
+                              step="0.01"
+                              value={createForm.fiat_amount}
+                              onChange={(e) =>
+                                setCreateForm({
+                                  ...createForm,
+                                  fiat_amount: e.target.value,
+                                })
+                              }
+                              className="h-11 pr-12"
+                              placeholder="0.00"
+                              max={
+                                selectedMerchant
+                                  ? selectedMerchant.balance
+                                  : undefined
+                              }
+                            />
+                            {selectedMerchant && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
+                                {selectedMerchant.currency_sign}
+                              </div>
+                            )}
+                          </div>
+                          {selectedMerchant &&
+                            createForm.fiat_amount &&
+                            parseFloat(createForm.fiat_amount) >
+                              parseFloat(selectedMerchant.balance) && (
+                              <p className="text-xs text-destructive">
+                                Amount exceeds available balance
+                              </p>
+                            )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="currency_name" className="text-right">
-                        Currency
-                      </Label>
-                      <Select
-                        value={createForm.currency_name}
-                        onValueChange={(value) =>
-                          setCreateForm({ ...createForm, currency_name: value })
-                        }
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select currency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {currencies.map((currency) => (
-                            <SelectItem key={currency.id} value={currency.name}>
-                              {currency.name} ({currency.sign})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="note" className="text-right">
-                        Note
-                      </Label>
-                      <textarea
-                        id="note"
-                        value={createForm.note}
-                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                          setCreateForm({ ...createForm, note: e.target.value })
-                        }
-                        className="col-span-3 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        placeholder="Optional note for this settlement"
-                        rows={3}
-                      />
+
+                    {/* Additional Information Section */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 pb-2 border-b border-border">
+                        <div className="w-2 h-2 bg-muted-foreground rounded-full"></div>
+                        <h3 className="font-semibold text-sm text-foreground">
+                          Additional Information
+                        </h3>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="note" className="text-sm font-medium">
+                          Note{" "}
+                          <span className="text-muted-foreground">
+                            (Optional)
+                          </span>
+                        </Label>
+                        <textarea
+                          id="note"
+                          value={createForm.note}
+                          onChange={(
+                            e: React.ChangeEvent<HTMLTextAreaElement>
+                          ) =>
+                            setCreateForm({
+                              ...createForm,
+                              note: e.target.value,
+                            })
+                          }
+                          className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                          placeholder="Add any additional notes or comments for this settlement..."
+                          rows={4}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {createForm.note.length}/500 characters
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsCreateDialogOpen(false)}
-                      disabled={createLoading}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={handleCreateSettlement}
-                      disabled={createLoading}
-                    >
-                      {createLoading ? "Creating..." : "Create Settlement"}
-                    </Button>
+                  <DialogFooter className="flex items-center justify-between pt-6 border-t border-border">
+                    <div className="text-xs text-muted-foreground">
+                      * Required fields
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsCreateDialogOpen(false)}
+                        disabled={createLoading}
+                        className="px-6"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleCreateSettlement}
+                        disabled={
+                          createLoading ||
+                          !createForm.merchant_id ||
+                          !createForm.fiat_amount ||
+                          (selectedMerchant &&
+                            createForm.fiat_amount &&
+                            parseFloat(createForm.fiat_amount) >
+                              parseFloat(selectedMerchant.balance))
+                        }
+                        className="px-6"
+                      >
+                        {createLoading ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                            Creating...
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Plus className="w-4 h-4" />
+                            Create Settlement
+                          </div>
+                        )}
+                      </Button>
+                    </div>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
